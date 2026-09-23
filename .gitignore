@@ -1,0 +1,16 @@
+# Legacy Swift app (reference only)
+dep/
+
+# Build output
+.build/
+dist/
+target/
+node_modules/
+src-tauri/gen/
+src-tauri/binaries/
+sidecar/*/.build/
+
+# Tooling
+graft/.cache/
+.DS_Store
+Resources/AppIcon-personal.icns

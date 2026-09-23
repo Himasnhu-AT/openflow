@@ -1,0 +1,93 @@
+{
+  "appTones": {
+    "com.apple.MobileSMS": {
+      "alt": "professional",
+      "tone": "supercasual"
+    },
+    "com.apple.Safari": {
+      "alt": "casual",
+      "tone": "supercasual"
+    },
+    "com.apple.Terminal": {
+      "alt": "professional",
+      "tone": "supercasual"
+    },
+    "com.apple.mail": {
+      "alt": "casual",
+      "tone": "professional"
+    },
+    "com.google.Chrome": {
+      "alt": "casual",
+      "tone": "professional"
+    },
+    "com.googlecode.iterm2": {
+      "alt": "casual",
+      "tone": "supercasual"
+    },
+    "com.microsoft.VSCode": {
+      "alt": "casual",
+      "tone": "supercasual"
+    },
+    "com.tinyspeck.slackmacgap": {
+      "alt": "professional",
+      "tone": "supercasual"
+    },
+    "net.whatsapp.WhatsApp": {
+      "alt": "professional",
+      "tone": "supercasual"
+    }
+  },
+  "asrVersion": "v2",
+  "chineseScript": "traditional",
+  "cloudAPIKey": "",
+  "cloudASRModel": "whisper-large-v3-turbo",
+  "cloudDictation": "long",
+  "cloudEnabled": false,
+  "cloudLLMModel": "qwen/qwen3.8-27b",
+  "cloudMeetings": true,
+  "defaultTones": {
+    "alt": "professional",
+    "tone": "supercasual"
+  },
+  "dictionary": [
+    "no wait: no wake, no weight, know wait"
+  ],
+  "fieldContext": true,
+  "hotkeyKeyCode": 41,
+  "keepClips": true,
+  "learnedSignals": [],
+  "liveText": true,
+  "liveTextExcluded": [
+    "com.apple.Terminal",
+    "com.googlecode.iterm2",
+    "dev.warp.Warp-Stable",
+    "net.kovidgoyal.kitty",
+    "io.alacritty",
+    "com.mitchellh.ghostty",
+    "com.github.wez.wezterm",
+    "co.zeit.hyper",
+    "com.microsoft.VSCode"
+  ],
+  "llamaPort": 8765,
+  "llamaServerPath": "/opt/homebrew/bin/llama-server",
+  "meetingDetect": true,
+  "meetingEngine": "auto",
+  "meetingFarEngine": "whisper",
+  "memory": "",
+  "microphone": "",
+  "model": "Qwen3.5-4B-Q4_K_M.gguf",
+  "notesModel": "",
+  "overlay": true,
+  "sounds": true,
+  "tapThreshold": 0.5,
+  "tones": {
+    "casual": "Tone: casual message to a friend or a colleague you are on first-name terms with. Lowercase i and lowercase sentence starts, but names keep their capitals. Normal punctuation: commas between clauses and a full stop at the end of every sentence including the last one, question marks kept, no exclamation marks or semicolons. Contractions and everyday wording stay as spoken, nothing gets formalised. Laughter and reactions (haha, lol, oh, wow) stay. Fillers like um and uh are removed.\nExample: \"Um, so, tomorrow is fine. See you then.\" -> \"so tomorrow is fine. see you then.\"\nExample: \"Haha. No, I really don't want to do it, but can you do it?\" -> \"haha no, i really don't want to do it, but can you do it?\"\nExample: \"Hey David, thanks a lot for reaching out! Haha, I appreciate the kind thoughts. I also locked in the place a few weeks before.\" -> \"hey David, thanks a lot for reaching out haha, i appreciate the kind thoughts. i also locked in the place a few weeks before.\"",
+    "professional": "Tone: message to a colleague or client. Normal capitalization and punctuation, complete sentences, no slang. Keep the speaker's own words and phrasing; fix grammar and remove fillers, but do not reword, formalize or restructure what they said.",
+    "supercasual": "Tone: casual text to a friend. Everything lowercase, including i, but names keep their capitals. Light punctuation: keep commas and full stops between clauses and sentences where the reader needs them, never a full stop at the very end, and no full stop or comma right before or after haha/lol. Keep question marks and apostrophes; no exclamation marks. Words flow, but stay readable. Laughter and reactions (haha, lol, oh, wow) stay. Fillers like um and uh are removed.\nExample: \"Um, so, tomorrow is fine. See you then.\" -> \"so tomorrow is fine, see you then\"\nExample: \"Haha. No, I really don't want to do it, but can you do it?\" -> \"haha no, i really don't want to do it, but can you do it?\"\nExample: \"Sure, see you at 5. Bring the charger.\" -> \"sure, see you at 5. bring the charger\"\nExample: \"Hey David, thanks a lot for reaching out! Haha, I appreciate the kind thoughts. I also locked in the place a few weeks before. Hope you can find someone to fill the spot soon.\" -> \"hey David, thanks a lot for reaching out haha i appreciate the kind thoughts. i also locked in the place a few weeks before, hope you can find someone to fill the spot soon\"\nQuotation marks around quoted or mentioned words and titles still apply.",
+    "verbatim": ""
+  },
+  "useContacts": false,
+  "whisperModel": "ggml-large-v3-turbo.bin",
+  "whisperServerPath": "/opt/homebrew/bin/whisper-server",
+  "windowAtLaunch": true
+}

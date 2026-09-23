@@ -1,0 +1,13 @@
+[package]
+name = "jez-platform"
+version.workspace = true
+edition.workspace = true
+description = "JezFlow OS integration: hotkey, field context, live typing, mic, call detection, sounds"
+
+[dependencies]
+jez-core.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
