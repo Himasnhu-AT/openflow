@@ -132,7 +132,7 @@ impl MeetingSession {
                 u = rx.recv() => u,
                 // The segmenter callbacks hold sender clones, so also watch the stop flag.
                 _ = tokio::time::sleep(Duration::from_millis(200)), if self.stopped.load(Ordering::SeqCst) => {
-                    match rx.try_recv() { Ok(u) => Some(u), Err(_) => None }
+                    rx.try_recv().ok()
                 }
             };
             let Some(u) = next else { break };
