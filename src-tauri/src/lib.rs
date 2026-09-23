@@ -2,6 +2,7 @@
 
 pub mod cli;
 mod commands;
+mod logging;
 mod meeting;
 mod orchestrator;
 mod state;
@@ -75,6 +76,7 @@ fn settings_arg() -> Option<Option<String>> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    logging::init();
     let shared = Shared::new(Store::load());
     let (handle, rx) = orchestrator::Handle::new();
 
@@ -115,6 +117,7 @@ pub fn run() {
             commands::set_launch_at_login,
             commands::overlay_action,
             commands::overlay_state,
+            commands::log_frontend,
         ])
         .setup(move |app| {
             let handle_app = app.handle().clone();

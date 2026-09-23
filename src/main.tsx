@@ -14,6 +14,9 @@ import { StylePage } from "./pages/Style";
 import { MemoryPage } from "./pages/Memory";
 import { ModelsPage } from "./pages/Models";
 import { SettingsPage } from "./pages/Settings";
+import { forwardErrors } from "./lib/errors";
+
+forwardErrors("main");
 
 type Page = "Home" | "Meetings" | "Insights" | "Dictionary" | "Style" | "Memory" | "Models" | "Settings";
 

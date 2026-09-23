@@ -7,6 +7,9 @@ import { api, events, fromAppleDate, type OverlayMode, type OverlayState } from 
 import { isTauri } from "../lib/bridge";
 import { clock } from "../lib/format";
 import "./overlay.css";
+import { forwardErrors } from "../lib/errors";
+
+forwardErrors("overlay");
 
 const BARS = 14;
 

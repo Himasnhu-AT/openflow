@@ -187,3 +187,9 @@ pub fn overlay_action(state: State<'_, AppState>, action: String) {
 pub fn overlay_state(state: State<'_, AppState>) -> OverlayState {
     state.shared.overlay_state()
 }
+
+/// Uncaught errors from the webviews (see src/lib/errors.ts).
+#[tauri::command]
+pub fn log_frontend(window: String, message: String) {
+    tracing::error!(target: "frontend", "[{window}] {message}");
+}
