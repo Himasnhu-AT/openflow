@@ -4,8 +4,9 @@
 // Dates: `number` = seconds since 2001-01-01 (Apple reference date), exactly as stored on disk.
 // Use `fromAppleDate` to get a JS Date.
 
-import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { UnlistenFn } from "@tauri-apps/api/event";
+// Same invoke/listen as @tauri-apps/api inside Tauri; falls back to the in-memory mock in a plain browser.
+import { invoke, listen } from "./bridge";
 
 export const APPLE_EPOCH_OFFSET = 978307200;
 export const fromAppleDate = (s: number) => new Date((s + APPLE_EPOCH_OFFSET) * 1000);
@@ -145,6 +146,9 @@ export interface Snapshot {
   catalog: CatalogModel[];
   whisperCatalog: CatalogModel;
   whisperServerFound: boolean;
+  /** `whisperCatalog.file` exists in models/ (it is a .bin, so it is not in installedModels). Optional: when
+   *  absent the UI falls back to `installedModels.includes(whisperCatalog.file)`. */
+  whisperModelInstalled?: boolean;
   dataDir: string;
 }
 
