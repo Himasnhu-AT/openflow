@@ -1,7 +1,6 @@
 # Notices
 
-OpenFlow is licensed under the PolyForm Noncommercial License 1.0.0 (see LICENSE): free to use, modify and share
-for personal, non-commercial purposes.
+OpenFlow is open source under the BSD 3-Clause License (see LICENSE).
 
 It builds on the following, each under its own license (not redistributed in this package; downloaded by you):
 
