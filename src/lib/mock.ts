@@ -270,7 +270,7 @@ function summarize(id: string) {
     m.summary = `## Summary\n- ${m.segments.length} lines discussed.\n- ${m.segments[0].text}\n\n## Decisions\n- None\n\n## Action items\n- Them: follow up on the open points\n\n## Your to-dos\n- Share the notes with the team`;
     const done = new Map(m.todos.map((t) => [t.text, t.done]));
     m.todos = ["Share the notes with the team"].map((text) => ({ id: uuid(), text, done: done.get(text) ?? false }));
-    if (m.titleAuto && m.end != null) m.title = "Café launch check-in";
+    if (m.titleAuto && m.end != null && m.title.startsWith("Meeting")) m.title = m.segments.length > 3 ? "Pricing page and launch checklist" : "Café launch check-in";
     state.summarizing = state.summarizing.filter((x) => x !== id);
     pushSnapshot();
   }, 2500);
