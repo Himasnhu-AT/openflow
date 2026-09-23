@@ -17,3 +17,5 @@ once_cell.workspace = true
 tracing.workspace = true
 dirs.workspace = true
 hound.workspace = true
+zhconv = "0.4.2"
+unicode-properties = { version = "0.1.4", default-features = false, features = ["general-category"] }
