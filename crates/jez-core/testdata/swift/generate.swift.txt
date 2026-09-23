@@ -1,0 +1,59 @@
+import Foundation
+func appDisplayName(for b: String) -> String { "Zoom" }
+struct Dictation: Codable, Identifiable {
+    var id = UUID()
+    var date: Date
+    var text: String
+    var raw: String
+    var app: String?
+    var tone: String
+    var seconds: Double
+    var clip: String?
+    var correction: String?
+}
+struct Stats: Codable {
+    var words = 0
+    var seconds = 0.0
+    var dictations = 0
+    var activeDays: [String] = []
+    var perApp: [String: Int] = [:]
+    var perTone: [String: Int] = [:]
+}
+let out = CommandLine.arguments[1]
+func w(_ d: Data, _ name: String) { try! d.write(to: URL(fileURLWithPath: out + "/" + name)) }
+let pretty = JSONEncoder(); pretty.outputFormatting = [.prettyPrinted, .sortedKeys]
+var c = Config()
+c.memory = "Line1\nquote \" back\\ tab\t ctrl\u{01} é 😀 </script> & 'x' \u{7f} \u{2028}"
+c.tapThreshold = 0.1 + 0.2
+c.tones["empty"] = ""
+w(try! pretty.encode(c), "config_odd.json")
+w(try! pretty.encode(Config()), "config_default.json")
+var e = Config(); e.appTones = [:]; e.dictionary = []; e.learnedSignals = []
+w(try! pretty.encode(e), "config_empty.json")
+var m = Meeting(title: "Weekly sync", app: "us.zoom.xos", start: Date(timeIntervalSinceReferenceDate: 780_000_000.25))
+m.id = UUID(uuidString: "0A1B2C3D-4E5F-4061-8293-A4B5C6D7E8F9")!
+m.end = Date(timeIntervalSinceReferenceDate: 780_003_725)
+m.segments = [MeetingSegment(id: UUID(uuidString: "11111111-2222-4333-8444-555555555555")!, time: 3725.9, speaker: "Them", text: "Second"),
+              MeetingSegment(id: UUID(uuidString: "11111111-2222-4333-8444-666666666666")!, time: 5, speaker: "You", text: "First one")]
+m.todos = [MeetingTodo(id: UUID(uuidString: "11111111-2222-4333-8444-777777777777")!, text: "Send deck", done: true)]
+m.summary = "## Summary\nStuff"
+m.notes = "mine"
+w(try! pretty.encode(m), "meeting.json")
+var m2 = Meeting(title: "Live", app: nil, start: Date(timeIntervalSinceReferenceDate: 0))
+m2.id = UUID(uuidString: "0A1B2C3D-4E5F-4061-8293-A4B5C6D7E8F0")!
+w(try! pretty.encode(m2), "meeting_live.json")
+let plain = JSONEncoder()
+let d = Dictation(id: UUID(uuidString: "0A1B2C3D-4E5F-4061-8293-A4B5C6D7E8F1")!, date: Date(timeIntervalSinceReferenceDate: 780_000_000.123456), text: "Hi / there", raw: "hi there", app: nil, tone: "casual", seconds: 2.5, clip: "X.wav", correction: nil)
+w(try! plain.encode([d]), "history.json")
+var s = Stats(); s.words = 3; s.seconds = 2; s.dictations = 1; s.activeDays = ["2026-09-23"]; s.perApp = ["unknown": 1, "com.a": 2]; s.perTone = ["casual": 1]
+w(try! plain.encode(s), "stats.json")
+w(try! plain.encode(Stats()), "stats_empty.json")
+let nums: [Double] = [0, 1, 0.5, 1e-7, 1e21, 123456789.123, 780000000.123456, -3.25, 1e16, 12345678901234567]
+w(try! pretty.encode(nums), "nums.json")
+print(m.markdown)
+print("---")
+print(m2.transcript.isEmpty, Meeting.clock(59.9), Meeting.clock(3600), Meeting.clock(36000.5))
+let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .short
+f.locale = Locale(identifier: "en_US"); f.timeZone = TimeZone(identifier: "UTC")
+print(f.string(from: m.start))
+print(f.string(from: Date(timeIntervalSinceReferenceDate: 780_000_000.25 - 12*3600)))

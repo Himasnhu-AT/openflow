@@ -12,6 +12,7 @@ pub mod paths;
 pub mod pipeline;
 pub mod segmenter;
 pub mod store;
+pub mod swift_json;
 pub mod text_rules;
 pub mod traits;
 pub mod wav;
