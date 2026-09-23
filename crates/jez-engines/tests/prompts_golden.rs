@@ -78,3 +78,24 @@ fn notes_prompts_match_swift() {
         assert_eq!(prompts::TITLE_SYSTEM, g.title_system);
     }
 }
+
+/// `JezFlow --dumpprompt casual` from the real Swift binary, run against `fixtures/dump_config.json`
+/// (Swift defaults plus memory, learned signals, an extra tone and a parenthesised dictionary line).
+/// Also checks that jez-core's default tone texts match the Swift ones byte for byte.
+#[test]
+fn dumpprompt_matches_swift_binary() {
+    let config: jez_core::Config = serde_json::from_str(include_str!("fixtures/dump_config.json")).unwrap();
+    let system = prompts::system_prompt(&config.tones, &config.dictionary, &config.memory, &Examples::new(), &config.learned_signals);
+    let got = format!("{system}\n=====USER=====\n{}\n", prompts::user_message("TRANSCRIPT", "casual", None));
+    let want = include_str!("fixtures/dumpprompt_casual.txt");
+    assert!(got == want, "{}", first_diff(&got, want));
+}
+
+#[test]
+fn default_config_tones_match_swift_defaults() {
+    let swift: jez_core::Config = serde_json::from_str(include_str!("fixtures/dump_config.json")).unwrap();
+    let rust = jez_core::Config::default();
+    for name in ["casual", "professional", "supercasual", "verbatim"] {
+        assert_eq!(rust.tones.get(name), swift.tones.get(name), "{name}");
+    }
+}

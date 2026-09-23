@@ -1930,6 +1930,7 @@ dependencies = [
  "async-trait",
  "futures-util",
  "jez-core",
+ "libc",
  "once_cell",
  "regex",
  "reqwest 0.12.28",
