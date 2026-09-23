@@ -2016,98 +2016,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jez-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "dirs 6.0.0",
- "fancy-regex",
- "hound",
- "once_cell",
- "regex",
- "serde",
- "serde_json",
- "tracing",
- "unicode-properties",
- "uuid",
- "zhconv",
-]
-
-[[package]]
-name = "jez-engines"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "futures-util",
- "jez-core",
- "libc",
- "once_cell",
- "regex",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
- "unicode-segmentation",
- "uuid",
-]
-
-[[package]]
-name = "jez-platform"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.22.1",
- "cpal",
- "jez-core",
- "objc2",
- "objc2-app-kit",
- "objc2-application-services",
- "objc2-core-audio",
- "objc2-core-audio-types",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-foundation",
- "rubato",
- "serde",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "jezflow"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "jez-core",
- "jez-engines",
- "jez-platform",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tokio",
- "tracing",
- "tracing-oslog",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "jiff"
 version = "0.2.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2963,6 +2871,98 @@ dependencies = [
  "dunce",
  "is-wsl",
  "libc",
+]
+
+[[package]]
+name = "openflow"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "openflow-core",
+ "openflow-engines",
+ "openflow-platform",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tokio",
+ "tracing",
+ "tracing-oslog",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "openflow-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dirs 6.0.0",
+ "fancy-regex",
+ "hound",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "tracing",
+ "unicode-properties",
+ "uuid",
+ "zhconv",
+]
+
+[[package]]
+name = "openflow-engines"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures-util",
+ "libc",
+ "once_cell",
+ "openflow-core",
+ "regex",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "unicode-segmentation",
+ "uuid",
+]
+
+[[package]]
+name = "openflow-platform"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.22.1",
+ "cpal",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-application-services",
+ "objc2-core-audio",
+ "objc2-core-audio-types",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-foundation",
+ "openflow-core",
+ "rubato",
+ "serde",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "unicode-segmentation",
 ]
 
 [[package]]

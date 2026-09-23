@@ -5,17 +5,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use jez_core::model::Meeting;
-use jez_core::store::parse_history;
-use jez_core::traits::{AsrEngine, Examples, PolishBackend, SystemAudio};
-use jez_core::{paths, pipeline, text_rules, wav, wer, Config, SAMPLE_RATE};
-use jez_engines::cloud::{Cloud, Scope};
-use jez_engines::live::LiveTranscriber;
-use jez_engines::polisher::Polisher;
-use jez_engines::prompts;
-use jez_engines::sidecar::{Sidecar, SidecarAsr, SidecarSystemAudio};
-use jez_platform::live_typer::LiveTyper;
-use jez_platform::Platform;
+use openflow_core::model::Meeting;
+use openflow_core::store::parse_history;
+use openflow_core::traits::{AsrEngine, Examples, PolishBackend, SystemAudio};
+use openflow_core::{paths, pipeline, text_rules, wav, wer, Config, SAMPLE_RATE};
+use openflow_engines::cloud::{Cloud, Scope};
+use openflow_engines::live::LiveTranscriber;
+use openflow_engines::polisher::Polisher;
+use openflow_engines::prompts;
+use openflow_engines::sidecar::{Sidecar, SidecarAsr, SidecarSystemAudio};
+use openflow_platform::live_typer::LiveTyper;
+use openflow_platform::Platform;
 
 fn arg_after(args: &[String], flag: &str) -> Option<String> {
     let i = args.iter().position(|a| a == flag)?;
@@ -39,6 +39,7 @@ fn exit(ok: bool) -> Option<i32> {
 }
 
 pub fn dispatch(args: &[String]) -> Option<i32> {
+    openflow_core::paths::import_legacy();
     if has(args, "--selftest") {
         return exit(selftest());
     }
@@ -80,7 +81,7 @@ fn load_config() -> Option<Config> {
     Config::load().map_err(|e| eprintln!("config: {e:#}")).ok()
 }
 
-fn history() -> Vec<jez_core::model::Dictation> {
+fn history() -> Vec<openflow_core::model::Dictation> {
     std::fs::read(paths::history_file()).map(|b| parse_history(&b)).unwrap_or_default()
 }
 
@@ -113,7 +114,7 @@ fn data_self_test() -> (usize, Vec<String>) {
     };
     let got: Arc<Mutex<Vec<(usize, f64)>>> = Arc::default();
     let g2 = Arc::clone(&got);
-    let seg = jez_core::segmenter::Segmenter::new(Box::new(move |s, t| g2.lock().unwrap().push((s.len(), t))));
+    let seg = openflow_core::segmenter::Segmenter::new(Box::new(move |s, t| g2.lock().unwrap().push((s.len(), t))));
     let mut audio = vec![0f32; 16_000]; // 1 s silence
     audio.extend((0..24_000).map(|i| (i as f32 * 0.2).sin() * 0.3)); // 1.5 s tone
     audio.extend(vec![0f32; 16_000]); // 1 s silence
@@ -125,7 +126,7 @@ fn data_self_test() -> (usize, Vec<String>) {
     check("segmenter start", got.first().map(|g| ((g.1 * 10.0) as i64).to_string()).unwrap_or("-1".into()), "7".into());
 
     let mut m = Meeting::new("t".into(), None, chrono::Utc::now());
-    m.todos = vec![jez_core::model::MeetingTodo {
+    m.todos = vec![openflow_core::model::MeetingTodo {
         id: uuid::Uuid::new_v4(),
         text: "Send the deck to Alex by Friday".into(),
         done: true,
@@ -178,7 +179,7 @@ async fn asr(config: &Config, boost: bool) -> anyhow::Result<(Arc<Sidecar>, Arc<
 /// Replays every corrected dictation with a clip through the current engines, prompts and rules.
 async fn eval(no_boost: bool) -> bool {
     let Some(config) = load_config() else { return false };
-    let store_clip = |d: &jez_core::model::Dictation| d.clip.as_ref().is_some_and(|c| paths::clips_dir().join(c).exists());
+    let store_clip = |d: &openflow_core::model::Dictation| d.clip.as_ref().is_some_and(|c| paths::clips_dir().join(c).exists());
     let history = history();
     let cases: Vec<_> = history.iter().filter(|d| d.correction.is_some() && store_clip(d)).rev().cloned().collect();
     let no_clip = history.iter().filter(|d| d.correction.is_some() && !store_clip(d)).count();
@@ -275,16 +276,16 @@ async fn eval(no_boost: bool) -> bool {
 /// Runs the polish step exactly as the app does and prints where the time went. Uses the running llama-server.
 async fn polishtest(raw: &str) -> bool {
     let Some(mut config) = load_config() else { return false };
-    if let Ok(extra) = std::env::var("JEZ_TONES_JSON") {
+    if let Ok(extra) = std::env::var("OPENFLOW_TONES_JSON") {
         if let Ok(map) = serde_json::from_str::<std::collections::BTreeMap<String, String>>(&extra) {
             config.tones.extend(map);
         }
     }
-    if std::env::var("JEZ_FORCE_CLOUD").is_ok() {
+    if std::env::var("OPENFLOW_FORCE_CLOUD").is_ok() {
         config.cloud_enabled = true;
         config.cloud_dictation = "all".into();
     }
-    let tone_names: Vec<String> = std::env::var("JEZ_TONES")
+    let tone_names: Vec<String> = std::env::var("OPENFLOW_TONES")
         .map(|t| t.split(',').map(String::from).collect())
         .unwrap_or_else(|_| vec!["casual".into(), "professional".into()]);
     let history = history();

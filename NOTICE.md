@@ -1,6 +1,6 @@
 # Notices
 
-JezFlow is licensed under the PolyForm Noncommercial License 1.0.0 (see LICENSE): free to use, modify and share
+OpenFlow is licensed under the PolyForm Noncommercial License 1.0.0 (see LICENSE): free to use, modify and share
 for personal, non-commercial purposes.
 
 It builds on the following, each under its own license (not redistributed in this package; downloaded by you):

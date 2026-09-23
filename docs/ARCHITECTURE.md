@@ -1,4 +1,4 @@
-# JezFlow (Tauri) architecture
+# OpenFlow (Tauri) architecture
 
 Rust + React/Vite port of the Swift app, which is kept in `dep/` (git-ignored, reference only).
 Behavioral specs are in `docs/spec/{dictation,meetings,ui}.md`. **Parity with the Swift app is the goal.** When a spec and the Swift source (`dep/Sources/JezFlow/*.swift`, absolute path `/Users/himanshu/codes/JezFlow/dep/Sources/JezFlow/`) disagree, the Swift source wins.
@@ -8,30 +8,30 @@ Behavioral specs are in `docs/spec/{dictation,meetings,ui}.md`. **Parity with th
 ```
 src/                     React UI. main.tsx = main window, overlay/main.tsx = floating pill. lib/api.ts = IPC contract.
 src-tauri/               Tauri app: orchestrator (state machine), commands, tray, windows, CLI tools.
-crates/jez-core/         Pure logic, no OS or network: config, model (DTOs), store, text_rules, pipeline,
+crates/openflow-core/         Pure logic, no OS or network: config, model (DTOs), store, text_rules, pipeline,
                          meeting, segmenter, catalog, wav, wer, whisper_filter, traits (all cross-crate contracts).
-crates/jez-engines/      Processes and network: polisher (llama-server), prompts, cloud (Groq), whisper_server,
+crates/openflow-engines/      Processes and network: polisher (llama-server), prompts, cloud (Groq), whisper_server,
                          notes, meeting_engine, downloader, sidecar (Swift helper client), live (live re-decode).
-crates/jez-platform/     OS integration behind jez_core::traits: macos/ (hotkey, AX, keyboard/clipboard, mic,
+crates/openflow-platform/     OS integration behind openflow_core::traits: macos/ (hotkey, AX, keyboard/clipboard, mic,
                          devices, apps, sounds) + cross-platform live_typer and detector built on the traits.
-sidecar/jezflow-helper/  Swift package (FluidAudio): ASR, CTC vocabulary boosting, SenseVoice, Core Audio
+sidecar/openflow-helper/  Swift package (FluidAudio): ASR, CTC vocabulary boosting, SenseVoice, Core Audio
                          process tap, Contacts/Calendar names. Shipped as a Tauri externalBin.
 ```
 
-Dependency direction: `src-tauri → jez-engines, jez-platform → jez-core`. `jez-core` has no OS or network deps.
-Windows/Linux ports add `jez-platform/src/{windows,linux}` and a sherpa-onnx `AsrEngine` + WASAPI/PipeWire
+Dependency direction: `src-tauri → openflow-engines, openflow-platform → openflow-core`. `openflow-core` has no OS or network deps.
+Windows/Linux ports add `openflow-platform/src/{windows,linux}` and a sherpa-onnx `AsrEngine` + WASAPI/PipeWire
 `SystemAudio`; nothing above the traits changes.
 
 ## Data compatibility (must hold)
 
-- Data dir: `~/Library/Application Support/JezFlow/` (override with `JEZFLOW_DATA_DIR`). The files are
+- Data dir: `~/Library/Application Support/OpenFlow/` (override with `OPENFLOW_DATA_DIR`). The files are
   `config.json`, `history.json`, `stats.json`, `clips/<uuid>.wav`, `meetings/<UUID>.json` and `models/`.
 - JSON is byte-compatible with the Swift app:
   - camelCase keys, with the Swift spellings `cloudAPIKey`, `cloudASRModel` and `cloudLLMModel`.
-  - Dates are f64 seconds since 2001-01-01 (`jez_core::apple_date`).
+  - Dates are f64 seconds since 2001-01-01 (`openflow_core::apple_date`).
   - UUIDs are uppercase strings.
   - Output is pretty-printed with sorted keys.
-- Bundle identifier: `com.jez.flow`. Logs use subsystem `com.jez.flow`.
+- Bundle identifier: `com.himanshuat.openflow`. Logs use subsystem `com.himanshuat.openflow`.
 
 ## Ports and processes
 
@@ -40,9 +40,9 @@ Windows/Linux ports add `jez-platform/src/{windows,linux}` and a sherpa-onnx `As
 | llama-server (polish) | 127.0.0.1:8765 (`config.llamaPort`) |
 | llama-server (notes model, transient) | 127.0.0.1:8767 |
 | whisper-server (meetings, far side) | 127.0.0.1:8768 |
-| jezflow-helper | child process, stdio |
+| openflow-helper | child process, stdio |
 
-## Sidecar protocol (`jezflow-helper` ⇄ `jez_engines::sidecar`)
+## Sidecar protocol (`openflow-helper` ⇄ `openflow_engines::sidecar`)
 
 Both directions use the same framing. Each frame is:
 - `u32` little-endian length of the JSON header,
@@ -91,14 +91,14 @@ Defined in `src/lib/api.ts` (TS) and `src-tauri/src/commands.rs` (Rust).
 
 | Team | Owns |
 |---|---|
-| A rules | `jez-core/src/{text_rules/,pipeline.rs,wer.rs,whisper_filter.rs}` |
-| B data | `jez-core/src/{config_io.rs,store.rs,meeting.rs,segmenter.rs,catalog.rs}` |
-| C engines | `jez-engines/src/{polisher,prompts,cloud,whisper_server,notes,meeting_engine,downloader}.rs` |
-| D sidecar | `sidecar/jezflow-helper/`, `jez-engines/src/{sidecar,live}.rs` |
-| E platform | `jez-platform/src/**` |
+| A rules | `openflow-core/src/{text_rules/,pipeline.rs,wer.rs,whisper_filter.rs}` |
+| B data | `openflow-core/src/{config_io.rs,store.rs,meeting.rs,segmenter.rs,catalog.rs}` |
+| C engines | `openflow-engines/src/{polisher,prompts,cloud,whisper_server,notes,meeting_engine,downloader}.rs` |
+| D sidecar | `sidecar/openflow-helper/`, `openflow-engines/src/{sidecar,live}.rs` |
+| E platform | `openflow-platform/src/**` |
 | F frontend | `src/**` (except `src/lib/api.ts`, which is shared: additive changes only, note them in the commit) |
 
-Shared files (`Cargo.toml`s, `jez-core/src/{lib,traits,model,config}.rs`, `api.ts`, this doc):
+Shared files (`Cargo.toml`s, `openflow-core/src/{lib,traits,model,config}.rs`, `api.ts`, this doc):
 - Change them only when necessary.
 - Make the change additive, in its own commit, with the reason in the message.
-- Each crate's `Cargo.toml` `[dependencies]` belongs to the team that owns that crate's code. Teams A and B both add to jez-core's list; keep those additions additive.
+- Each crate's `Cargo.toml` `[dependencies]` belongs to the team that owns that crate's code. Teams A and B both add to openflow-core's list; keep those additions additive.

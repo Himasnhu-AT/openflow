@@ -3,8 +3,8 @@
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    if let Some(code) = jezflow_lib::cli::dispatch(&args) {
+    if let Some(code) = openflow_lib::cli::dispatch(&args) {
         std::process::exit(code);
     }
-    jezflow_lib::run()
+    openflow_lib::run()
 }

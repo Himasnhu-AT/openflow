@@ -1,7 +1,7 @@
 //! Tauri commands. Mirrors `api` in src/lib/api.ts — change both together.
 
-use jez_core::model::{AppInfo, InputDevice, Meeting};
-use jez_core::{paths, Config};
+use openflow_core::model::{AppInfo, InputDevice, Meeting};
+use openflow_core::{paths, Config};
 use tauri::{AppHandle, State};
 use tauri_plugin_autostart::ManagerExt;
 use uuid::Uuid;

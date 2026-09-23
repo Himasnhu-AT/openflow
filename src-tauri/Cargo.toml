@@ -1,21 +1,21 @@
 [package]
-name = "jezflow"
+name = "openflow"
 version.workspace = true
 edition.workspace = true
 description = "Local voice dictation and meeting notes"
-default-run = "jezflow"
+default-run = "openflow"
 
 [lib]
-name = "jezflow_lib"
+name = "openflow_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-jez-core.workspace = true
-jez-engines.workspace = true
-jez-platform.workspace = true
+openflow-core.workspace = true
+openflow-engines.workspace = true
+openflow-platform.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true

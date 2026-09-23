@@ -197,7 +197,7 @@ function RunningAppMenu({ onPick }: { onPick: (bundle: string) => void }) {
     if (!open) return;
     api
       .runningApps()
-      .then((list) => setApps(list.filter((a) => a.bundleId !== "com.jez.flow").sort((a, b) => a.name.localeCompare(b.name))))
+      .then((list) => setApps(list.filter((a) => a.bundleId !== "com.himanshuat.openflow").sort((a, b) => a.name.localeCompare(b.name))))
       .catch(() => setApps([]));
     const close = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);

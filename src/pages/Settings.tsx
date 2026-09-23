@@ -3,7 +3,7 @@ import { api, type Config, type InputDevice } from "../lib/api";
 import { useStore } from "../lib/store";
 import { CardList, PageHeader, Picker, RowCard, SecondaryButton, SectionLabel, Switch, TextField } from "../components/ui";
 
-const EVAL_COMMAND = "/Applications/JezFlow.app/Contents/MacOS/JezFlow --eval";
+const EVAL_COMMAND = "/Applications/OpenFlow.app/Contents/MacOS/OpenFlow --eval";
 
 function SettingRow({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
@@ -79,7 +79,7 @@ export function SettingsPage() {
           <SettingRow key="wal" title="Open window at launch" subtitle="Off keeps it to the Dock and menu bar, handy with Launch at login">
             {toggle("windowAtLaunch")}
           </SettingRow>
-          <SettingRow key="lal" title="Launch at login" subtitle="Keep JezFlow in the menu bar">
+          <SettingRow key="lal" title="Launch at login" subtitle="Keep OpenFlow in the menu bar">
             <Switch
               on={launchAtLogin}
               onChange={(on) => {

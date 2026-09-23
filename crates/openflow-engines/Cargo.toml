@@ -1,0 +1,24 @@
+[package]
+name = "openflow-engines"
+version.workspace = true
+edition.workspace = true
+description = "OpenFlow engines: llama-server polisher, Groq cloud, whisper-server, notes, ASR (sidecar)"
+
+[dependencies]
+openflow-core.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+futures-util.workspace = true
+tracing.workspace = true
+regex.workspace = true
+once_cell.workspace = true
+unicode-segmentation = "1"
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"

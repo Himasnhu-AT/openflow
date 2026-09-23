@@ -3,10 +3,10 @@
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use jez_core::catalog::{self, CatalogModel};
-use jez_core::model::{Dictation, Meeting, Stats};
-use jez_core::store::Store;
-use jez_core::{paths, Config};
+use openflow_core::catalog::{self, CatalogModel};
+use openflow_core::model::{Dictation, Meeting, Stats};
+use openflow_core::store::Store;
+use openflow_core::{paths, Config};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;

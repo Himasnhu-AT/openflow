@@ -1,7 +1,24 @@
-# JezFlow
+# OpenFlow
 
-Personal, fully local voice dictation for macOS (a Wispr Flow replacement), built with Tauri (Rust + React + Vite). Hold **⌘;**, talk, release,
-and the cleaned-up text is pasted wherever your cursor is. No cloud, no accounts, no API keys.
+**Talk anywhere on your Mac. Your words land where your cursor is — cleaned up, in your voice, and they never leave your machine.**
+
+OpenFlow is voice dictation and meeting notes that run entirely on your own hardware. Hold **⌘;**, speak, let go:
+filler words gone, grammar fixed, the tone matched to the app you're in — a casual text in Messages, a proper
+email in Mail, exactly-as-spoken in your terminal. No account, no subscription, no audio sent anywhere.
+
+- **Private by design.** Speech recognition (NVIDIA Parakeet) and cleanup (Qwen3.5 via llama.cpp) run on your Mac.
+  Cloud models are strictly opt-in, with your own key, and fall back to local on any failure.
+- **Fast enough to feel instant.** Words appear while you're still talking; a 4 s clip transcribes in ~70 ms on
+  Apple Silicon, and the final text is pasted the moment you release.
+- **Writes like you.** Per-app tones you can edit, a personal dictionary for names and jargon, a memory of who you
+  are, and corrections that teach it your style. "No wait, Thursday" does what you meant.
+- **Meeting notes without a bot in the call.** It notices when Zoom, Meet, Teams or FaceTime use the mic, offers
+  to take notes, transcribes you and them separately, and writes a summary, decisions, action items and your
+  to-dos. Audio is never stored.
+- **Yours to inspect and change.** Every rule, prompt and model is visible and swappable. Replay your own
+  corrected dictations with `--eval` to measure whether a change actually helped.
+
+macOS (Apple Silicon) today; Windows and Linux are on the way — the platform layer is built for it.
 
 ## How it works
 
@@ -16,24 +33,24 @@ and the cleaned-up text is pasted wherever your cursor is. No cloud, no accounts
 - Apple Silicon, macOS 15+. Built with Rust (stable), Node + pnpm, and the Swift command line tools for the
   speech helper; Xcode is not needed.
 - `brew install llama.cpp`
-- A GGUF model in `~/Library/Application Support/JezFlow/models/` (default `Qwen3.5-4B-Q4_K_M.gguf`).
+- A GGUF model in `~/Library/Application Support/OpenFlow/models/` (default `Qwen3.5-4B-Q4_K_M.gguf`).
 
 ## Build & install
 
 ```sh
 pnpm install
-./scripts/build.sh --install   # builds out/JezFlow.app and copies it to /Applications
-open /Applications/JezFlow.app
+./scripts/build.sh --install   # builds out/OpenFlow.app and copies it to /Applications
+open /Applications/OpenFlow.app
 ```
 
 First launch: grant **Microphone** and **Accessibility** (System Settings → Privacy & Security). The
 Accessibility grant is tied to the binary's ad-hoc signature, so after a rebuild you may need to remove and
-re-add JezFlow in that list. Add it to Login Items to have it always running.
+re-add OpenFlow in that list. Add it to Login Items to have it always running.
 
 ## Configure
 
-JezFlow is a normal Dock app with a menu bar icon as well. The window opens at launch (Settings › Open window at
-launch turns that off for login starts); clicking the Dock icon or the menu bar icon → **Open JezFlow…** brings it back:
+OpenFlow is a normal Dock app with a menu bar icon as well. The window opens at launch (Settings › Open window at
+launch turns that off for login starts); clicking the Dock icon or the menu bar icon → **Open OpenFlow…** brings it back:
 
 - **General** – engine status, hotkey reference, tap threshold, Parakeet v2/v3, launch at login.
 - **Models** – pick the active polish model, download Qwen3.5 2B / 4B / 9B, or drop any `.gguf` into the models folder.
@@ -76,8 +93,8 @@ Three things keep it small:
 - **n-gram speculative decoding** (`--spec-type ngram-mod`) helps when the output repeats earlier text; a separate draft
   model (Qwen3.5-0.8B) was measured and is slower on this machine, so it is not used.
 
-Per-stage timings are logged: `log stream --predicate 'subsystem == "com.jez.flow"' --level info | grep -E "Timing|LLM"`.
-`JezFlow --polishtest "raw words"` replays the polish step with your settings and prints where the time went.
+Per-stage timings are logged: `log stream --predicate 'subsystem == "com.himanshuat.openflow"' --level info | grep -E "Timing|LLM"`.
+`OpenFlow --polishtest "raw words"` replays the polish step with your settings and prints where the time went.
 
 ## Meeting notes
 
@@ -114,38 +131,38 @@ model sees it. Terms need at least 3 characters.
 ## Eval: replay your own dictations
 
 ```sh
-/Applications/JezFlow.app/Contents/MacOS/JezFlow --eval            # replay corrected clips through the current build
-/Applications/JezFlow.app/Contents/MacOS/JezFlow --eval --no-boost # same, without speech-layer dictionary boosting
-/Applications/JezFlow.app/Contents/MacOS/JezFlow --selftest        # rule-layer unit checks, no models needed
-/Applications/JezFlow.app/Contents/MacOS/JezFlow --context         # what the field reader sees for the frontmost app
-/Applications/JezFlow.app/Contents/MacOS/JezFlow --livetest x.wav  # push a 16 kHz wav through the live-typing path into TextEdit
+/Applications/OpenFlow.app/Contents/MacOS/OpenFlow --eval            # replay corrected clips through the current build
+/Applications/OpenFlow.app/Contents/MacOS/OpenFlow --eval --no-boost # same, without speech-layer dictionary boosting
+/Applications/OpenFlow.app/Contents/MacOS/OpenFlow --selftest        # rule-layer unit checks, no models needed
+/Applications/OpenFlow.app/Contents/MacOS/OpenFlow --context         # what the field reader sees for the frontmost app
+/Applications/OpenFlow.app/Contents/MacOS/OpenFlow --livetest x.wav  # push a 16 kHz wav through the live-typing path into TextEdit
 ```
 
 `--eval` takes every dictation that has both a clip and a correction, runs it through the current engines, rules and
 prompts, and prints word error rate against the correction: *heard* (raw transcript), *shipped* (what was pasted at
 the time) and *now*. Run it before and after any prompt, rule or model change.
 
-Everything is stored in `~/Library/Application Support/JezFlow/` (`config.json`, `history.json`, `clips/`); edits in the window
-apply immediately. `open -a JezFlow --args --settings Models` opens straight to a tab.
+Everything is stored in `~/Library/Application Support/OpenFlow/` (`config.json`, `history.json`, `clips/`); edits in the window
+apply immediately. `open -a OpenFlow --args --settings Models` opens straight to a tab.
 
 ## Logs
 
 ```sh
-log stream --predicate 'subsystem == "com.jez.flow"' --level info
+log stream --predicate 'subsystem == "com.himanshuat.openflow"' --level info
 ```
 
 ## Development
 
 ```sh
 pnpm install
-(cd sidecar/jezflow-helper && swift build -c release)   # speech helper (FluidAudio), optional for UI work
+(cd sidecar/openflow-helper && swift build -c release)   # speech helper (FluidAudio), optional for UI work
 pnpm tauri dev                                            # app with hot reload
 pnpm dev                                                  # UI only, in a browser, with mock data
 cargo test --workspace                                    # rules, data, engines, platform tests
-JEZFLOW_DATA_DIR=/tmp/jezflow-test pnpm tauri dev         # run against a scratch data folder
+OPENFLOW_DATA_DIR=/tmp/openflow-test pnpm tauri dev         # run against a scratch data folder
 ```
 
-Layout: `src/` React UI, `src-tauri/` app shell and orchestrator, `crates/jez-core` (rules, pipeline, data),
-`crates/jez-engines` (llama-server, Groq, whisper-server, speech helper client), `crates/jez-platform` (macOS
-integration), `sidecar/jezflow-helper` (Swift: Parakeet, SenseVoice, system audio tap, Contacts/Calendar).
+Layout: `src/` React UI, `src-tauri/` app shell and orchestrator, `crates/openflow-core` (rules, pipeline, data),
+`crates/openflow-engines` (llama-server, Groq, whisper-server, speech helper client), `crates/openflow-platform` (macOS
+integration), `sidecar/openflow-helper` (Swift: Parakeet, SenseVoice, system audio tap, Contacts/Calendar).
 See `docs/ARCHITECTURE.md`. The original Swift app is kept locally in `dep/` (not tracked) as the reference.

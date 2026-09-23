@@ -6,19 +6,19 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use jez_core::model::{AppInfo, Dictation, InputDevice, Meeting};
-use jez_core::traits::{AsrEngine, HotkeyEvent, NameSource, SystemAudio};
-use jez_core::{paths, pipeline, text_rules, wav, Config, FieldContext, SAMPLE_RATE};
-use jez_engines::cloud::{self, Cloud, Scope};
-use jez_engines::downloader::{DownloadEvent, Downloader};
-use jez_engines::live::LiveTranscriber;
-use jez_engines::meeting_engine::MeetingEngine;
-use jez_engines::polisher::Polisher;
-use jez_engines::sidecar::{Sidecar, SidecarAsr, SidecarNames, SidecarSystemAudio};
-use jez_engines::whisper_server::WhisperServer;
-use jez_platform::detector::MeetingDetector;
-use jez_platform::live_typer::LiveTyper;
-use jez_platform::Platform;
+use openflow_core::model::{AppInfo, Dictation, InputDevice, Meeting};
+use openflow_core::traits::{AsrEngine, HotkeyEvent, NameSource, SystemAudio};
+use openflow_core::{paths, pipeline, text_rules, wav, Config, FieldContext, SAMPLE_RATE};
+use openflow_engines::cloud::{self, Cloud, Scope};
+use openflow_engines::downloader::{DownloadEvent, Downloader};
+use openflow_engines::live::LiveTranscriber;
+use openflow_engines::meeting_engine::MeetingEngine;
+use openflow_engines::polisher::Polisher;
+use openflow_engines::sidecar::{Sidecar, SidecarAsr, SidecarNames, SidecarSystemAudio};
+use openflow_engines::whisper_server::WhisperServer;
+use openflow_platform::detector::MeetingDetector;
+use openflow_platform::live_typer::LiveTyper;
+use openflow_platform::Platform;
 use serde_json::json;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, oneshot};
@@ -332,7 +332,7 @@ async fn start_polisher(orc: &Orc) {
             anyhow::bail!("llama-server didn't become ready");
         }
         let examples = orc.shared.store().all_corrections(3);
-        use jez_core::traits::PolishBackend;
+        use openflow_core::traits::PolishBackend;
         let _ = p
             .polish(
                 "warm up",
@@ -431,7 +431,7 @@ async fn handle_msg(orc: &Orc, msg: Msg) {
             let a = Arc::clone(&orc.platform.apps);
             tauri::async_runtime::spawn(async move {
                 let mut apps = tokio::task::spawn_blocking(move || a.running()).await.unwrap_or_default();
-                apps.retain(|a| a.bundle_id != "com.jez.flow");
+                apps.retain(|a| a.bundle_id != "com.himanshuat.openflow");
                 apps.sort_by_key(|a| a.name.to_lowercase());
                 let _ = tx.send(apps);
             });
@@ -547,7 +547,7 @@ fn render(orc: &Orc) {
             State::Error(m) => OverlayMode::Message { text: m },
             _ => {
                 if let Some(run) = orc.meeting.lock().unwrap().as_ref() {
-                    OverlayMode::MeetingLive { start: jez_core::apple_date::to_reference(&run.start) }
+                    OverlayMode::MeetingLive { start: openflow_core::apple_date::to_reference(&run.start) }
                 } else if let Some(app) = orc.meeting_offer.lock().unwrap().clone() {
                     OverlayMode::MeetingOffer { app }
                 } else {
@@ -805,7 +805,7 @@ async fn finish_dictation(orc: &Orc, samples: Vec<f32>, tone: &str, config: &Con
     }
     let prefix = if field.as_ref().is_some_and(|f| f.needs_leading_space()) { " " } else { "" };
     let examples = orc.shared.store().all_corrections(3);
-    let backend = polisher.as_deref().map(|p| p as &dyn jez_core::traits::PolishBackend);
+    let backend = polisher.as_deref().map(|p| p as &dyn openflow_core::traits::PolishBackend);
     let mut text = pipeline::run(&raw, tone, config, backend, &examples, field.as_ref(), None).await?;
     tracing::info!(
         "Timing: audio {} ms, asr {} ms, polish {} ms, {} words",

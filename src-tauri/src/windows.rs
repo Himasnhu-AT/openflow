@@ -89,7 +89,7 @@ mod macos {
     }
 
     /// Centered horizontally on the screen under the mouse, 28 pt above the bottom of its visible frame.
-    /// `orderFrontRegardless` shows it without activating JezFlow, so the field being dictated into keeps focus.
+    /// `orderFrontRegardless` shows it without activating OpenFlow, so the field being dictated into keeps focus.
     pub fn place(w: &WebviewWindow, hidden: bool, width: f64, height: f64) {
         let Some(win) = ns_window(w) else { return };
         if hidden {

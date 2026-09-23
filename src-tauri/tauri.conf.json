@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "JezFlow",
+  "productName": "OpenFlow",
   "version": "0.1.0",
-  "identifier": "com.jez.flow",
+  "identifier": "com.himanshuat.openflow",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "JezFlow",
+        "title": "OpenFlow",
         "width": 1080,
         "height": 700,
         "minWidth": 960,
@@ -65,11 +65,11 @@
     },
     "category": "Productivity",
     "externalBin": [
-      "binaries/jezflow-helper"
+      "binaries/openflow-helper"
     ],
     "resources": {
       "../README.md": "README.md"
     }
   },
-  "mainBinaryName": "JezFlow"
+  "mainBinaryName": "OpenFlow"
 }

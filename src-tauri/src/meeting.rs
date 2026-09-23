@@ -6,12 +6,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use jez_core::model::MeetingSegment;
-use jez_core::segmenter::Segmenter;
-use jez_core::text_rules;
-use jez_core::traits::{AudioDevices, Mic, SystemAudio};
-use jez_engines::meeting_engine::MeetingEngine;
-use jez_platform::mic_watchdog::MicWatchdog;
+use openflow_core::model::MeetingSegment;
+use openflow_core::segmenter::Segmenter;
+use openflow_core::text_rules;
+use openflow_core::traits::{AudioDevices, Mic, SystemAudio};
+use openflow_engines::meeting_engine::MeetingEngine;
+use openflow_platform::mic_watchdog::MicWatchdog;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -153,7 +153,7 @@ impl MeetingSession {
             if text.is_empty() {
                 continue;
             }
-            let end = u.start + u.samples.len() as f64 / jez_core::SAMPLE_RATE as f64;
+            let end = u.start + u.samples.len() as f64 / openflow_core::SAMPLE_RATE as f64;
             let mut merged = false;
             if u.speaker == last_speaker && u.start - last_end < 1.5 {
                 if let Some(prev_id) = last_segment {

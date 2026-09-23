@@ -1,5 +1,5 @@
 // IPC contract between the React UI and the Rust app. Mirrors src-tauri/src/commands.rs and the DTOs in
-// crates/jez-core/src/{config,model}.rs (serde camelCase). Change both sides together.
+// crates/openflow-core/src/{config,model}.rs (serde camelCase). Change both sides together.
 //
 // Dates: `number` = seconds since 2001-01-01 (Apple reference date), exactly as stored on disk.
 // Use `fromAppleDate` to get a JS Date.
@@ -227,6 +227,6 @@ export const events = {
   level: (cb: (v: number) => void): Promise<UnlistenFn> => listen<number>("level", (e) => cb(e.payload)),
   download: (cb: (p: DownloadProgress) => void): Promise<UnlistenFn> =>
     listen<DownloadProgress>("download", (e) => cb(e.payload)),
-  /** Main window navigation requested by Rust (`--settings Models`, tray "Open JezFlow…"). */
+  /** Main window navigation requested by Rust (`--settings Models`, tray "Open OpenFlow…"). */
   navigate: (cb: (page: string) => void): Promise<UnlistenFn> => listen<string>("navigate", (e) => cb(e.payload)),
 };

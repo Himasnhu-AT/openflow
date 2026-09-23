@@ -10,7 +10,7 @@ export function InsightsPage() {
   const names = useAppNames(Object.keys(s.perApp));
   return (
     <div className="page">
-      <PageHeader title="Insights" subtitle="All-time, counted locally since you installed JezFlow." />
+      <PageHeader title="Insights" subtitle="All-time, counted locally since you installed OpenFlow." />
       <div className="scroll">
         <div style={{ display: "flex", gap: 16, paddingBottom: 16 }}>
           <StatTile value={String(snap.wpm)} label="Words per minute" extra={extra("Speaking is ~3× faster than typing")} />

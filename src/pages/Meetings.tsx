@@ -124,7 +124,7 @@ export function MeetingsPage() {
         }
       />
       {snap.meetings.length === 0 ? (
-        <div className="empty">No meetings yet. JezFlow offers to take notes when a call starts, or press Start notes now.</div>
+        <div className="empty">No meetings yet. OpenFlow offers to take notes when a call starts, or press Start notes now.</div>
       ) : (
         <div style={{ display: "flex", gap: 20, flex: 1, minHeight: 0, position: "relative" }}>
           <div style={{ width: 240, flex: "none", display: "flex", flexDirection: "column", gap: 10 }}>

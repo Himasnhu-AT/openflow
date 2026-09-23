@@ -9,7 +9,7 @@ use tauri::{AppHandle, Manager, Wry};
 use crate::orchestrator::Msg;
 use crate::state::{Shared, Snapshot};
 
-pub const TRAY_ID: &str = "jezflow";
+pub const TRAY_ID: &str = "openflow";
 
 /// Tray icon per status, as SF Symbols in the Swift app.
 pub enum TrayIconKind {
@@ -115,8 +115,8 @@ fn build_menu(app: &AppHandle, shared: &Shared, snap: &Snapshot) -> tauri::Resul
 
     let meeting_title = if snap.live_meeting_id.is_some() { "Stop Meeting Notes" } else { "Start Meeting Notes" };
     let meeting = MenuItem::with_id(app, "meeting", meeting_title, true, None::<&str>)?;
-    let open = MenuItem::with_id(app, "open", "Open JezFlow…", true, Some("CmdOrCtrl+,"))?;
-    let quit = MenuItem::with_id(app, "quit", "Quit JezFlow", true, Some("CmdOrCtrl+Q"))?;
+    let open = MenuItem::with_id(app, "open", "Open OpenFlow…", true, Some("CmdOrCtrl+,"))?;
+    let quit = MenuItem::with_id(app, "quit", "Quit OpenFlow", true, Some("CmdOrCtrl+Q"))?;
 
     Menu::with_items(
         app,

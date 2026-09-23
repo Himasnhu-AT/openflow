@@ -52,7 +52,7 @@ const APPS: Record<string, string> = {
   "us.zoom.xos": "zoom.us",
   "com.apple.Notes": "Notes",
   "com.linear": "Linear",
-  "com.jez.flow": "JezFlow",
+  "com.himanshuat.openflow": "OpenFlow",
 };
 const APP_COLORS = ["#34c759", "#0a84ff", "#5e5ce6", "#ff9f0a", "#ff375f", "#64d2ff", "#bf5af2", "#30d158"];
 
@@ -78,10 +78,10 @@ const history: Dictation[] = [
     clip: "a.wav",
   }),
   dictation(1500, "Hi Priya,\n\nThanks for the quick turnaround on the contract. I've added two comments on section 4; otherwise we're good to sign.\n\nBest,\nSam", "com.apple.mail", "professional", 17.8, { clip: "b.wav" }),
-  dictation(3600 * 3, "Can we move the JezFlow sync to Thursday at 3?", "com.google.Chrome", "professional", 4.1, {
+  dictation(3600 * 3, "Can we move the OpenFlow sync to Thursday at 3?", "com.google.Chrome", "professional", 4.1, {
     raw: "can we move the jazz flow sync to thursday at three",
     text: "Can we move the jazz flow sync to Thursday at 3?",
-    correction: "Can we move the JezFlow sync to Thursday at 3?",
+    correction: "Can we move the OpenFlow sync to Thursday at 3?",
   }),
   dictation(DAY + 600, "git commit -m 'fix overlay sizing'", "com.apple.Terminal", "verbatim", 2.4),
   dictation(DAY + 5000, "haha yes, see you at 7", "com.apple.MobileSMS", "supercasual", 1.9),
@@ -174,7 +174,7 @@ const dayKey = (offset: number) => {
 };
 
 const state: Snapshot = {
-  config: { ...(starter as unknown as Config), dictionary: ["JezFlow: jez flow, jazz flow, jazz flo", ...starter.dictionary, "Priya", "Maya"] },
+  config: { ...(starter as unknown as Config), dictionary: ["OpenFlow: open flow, open flo", ...starter.dictionary, "Priya", "Maya"] },
   history,
   stats: {
     words: 12843,
@@ -207,7 +207,7 @@ const state: Snapshot = {
   whisperCatalog,
   whisperServerFound: false,
   whisperModelInstalled: false,
-  dataDir: "/Users/you/Library/Application Support/JezFlow",
+  dataDir: "/Users/you/Library/Application Support/OpenFlow",
 };
 
 const pushSnapshot = () => emit("snapshot", state);
@@ -416,7 +416,7 @@ const handlers: Record<string, Handler> = {
   },
   input_devices: () => devices,
   running_apps: () =>
-    ["com.apple.Safari", "com.tinyspeck.slackmacgap", "com.apple.Notes", "com.linear", "us.zoom.xos", "com.jez.flow"].map((b) => appInfo(b)!),
+    ["com.apple.Safari", "com.tinyspeck.slackmacgap", "com.apple.Notes", "com.linear", "us.zoom.xos", "com.himanshuat.openflow"].map((b) => appInfo(b)!),
   app_info: ({ bundleId }) => appInfo(bundleId),
   open_path: ({ which }) => console.info(`[mock] open ${which}`),
   copy_text: ({ text }) => navigator.clipboard?.writeText(text).catch(() => {}),

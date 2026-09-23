@@ -73,7 +73,7 @@ function App() {
         <nav className="sidebar">
           <div className="brand" data-tauri-drag-region>
             <AudioLines size={21} strokeWidth={2.4} />
-            <span className="brand-name">JezFlow</span>
+            <span className="brand-name">OpenFlow</span>
             <span className="pill-local">Local</span>
           </div>
           {MAIN.map((p) => (

@@ -1,4 +1,4 @@
-//! JezFlow Tauri app: windows, tray, commands and the orchestrator that runs dictation and meetings.
+//! OpenFlow Tauri app: windows, tray, commands and the orchestrator that runs dictation and meetings.
 
 pub mod cli;
 mod commands;
@@ -11,7 +11,7 @@ mod windows;
 
 use std::path::PathBuf;
 
-use jez_core::store::Store;
+use openflow_core::store::Store;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
 
@@ -32,16 +32,16 @@ pub(crate) fn readme_path(app: &AppHandle) -> Option<PathBuf> {
 fn app_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let app_menu = Submenu::with_items(
         app,
-        "JezFlow",
+        "OpenFlow",
         true,
         &[
-            &PredefinedMenuItem::about(app, Some("About JezFlow"), None)?,
+            &PredefinedMenuItem::about(app, Some("About OpenFlow"), None)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::hide(app, Some("Hide JezFlow"))?,
+            &PredefinedMenuItem::hide(app, Some("Hide OpenFlow"))?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::quit(app, Some("Quit JezFlow"))?,
+            &PredefinedMenuItem::quit(app, Some("Quit OpenFlow"))?,
         ],
     )?;
     let edit = Submenu::with_items(
@@ -77,6 +77,7 @@ fn settings_arg() -> Option<Option<String>> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     logging::init();
+    openflow_core::paths::import_legacy();
     let shared = Shared::new(Store::load());
     let (handle, rx) = orchestrator::Handle::new();
 
@@ -141,7 +142,7 @@ pub fn run() {
             }
         })
         .build(tauri::generate_context!())
-        .expect("error while building JezFlow");
+        .expect("error while building OpenFlow");
 
     app.run(|app, event| match event {
         // Clicking the Dock icon brings the window back.

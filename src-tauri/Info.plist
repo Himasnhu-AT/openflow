@@ -3,12 +3,12 @@
 <plist version="1.0">
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>JezFlow listens while you hold the hotkey so it can transcribe your dictation on-device.</string>
+	<string>OpenFlow listens while you hold the hotkey so it can transcribe your dictation on-device.</string>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>JezFlow captures the other side of a call so meeting notes include everyone, transcribed on-device.</string>
+	<string>OpenFlow captures the other side of a call so meeting notes include everyone, transcribed on-device.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Names from your contacts help JezFlow recognise who you are talking about. They stay on this Mac.</string>
+	<string>Names from your contacts help OpenFlow recognise who you are talking about. They stay on this Mac.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Today's meeting titles and attendees help JezFlow recognise names. They stay on this Mac.</string>
+	<string>Today's meeting titles and attendees help OpenFlow recognise names. They stay on this Mac.</string>
 </dict>
 </plist>
