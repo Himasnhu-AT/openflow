@@ -8,7 +8,7 @@ description = "Pure, cross-platform JezFlow logic: config, store, text rules, pi
 anyhow.workspace = true
 async-trait.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
 uuid.workspace = true
 chrono.workspace = true
 regex.workspace = true
