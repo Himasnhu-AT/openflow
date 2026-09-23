@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Builds JezFlow.app (Tauri) with the Swift helper sidecar and optionally installs it to /Applications.
-#   ./scripts/build.sh            build dist/JezFlow.app
+#   ./scripts/build.sh            build out/JezFlow.app
 #   ./scripts/build.sh --install  build, then replace /Applications/JezFlow.app
 set -euo pipefail
 setopt null_glob
@@ -19,8 +19,8 @@ pnpm install --frozen-lockfile >/dev/null
 pnpm tauri build --bundles app
 
 APP_SRC=target/release/bundle/macos/JezFlow.app
-APP=dist/JezFlow.app
-rm -rf "$APP"; mkdir -p dist
+APP=out/JezFlow.app
+rm -rf "$APP"; mkdir -p out
 cp -R "$APP_SRC" "$APP"
 
 # SwiftPM resource bundles (FluidAudio ships one) are found through Bundle.main.resourceURL.
