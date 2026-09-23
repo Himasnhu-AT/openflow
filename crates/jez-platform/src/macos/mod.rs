@@ -26,5 +26,6 @@ pub fn platform() -> crate::Platform {
         devices: Arc::new(MacAudioDevices),
         apps: Arc::new(MacApps::default()),
         sounds: Arc::new(MacSounds),
+        new_mic: Arc::new(|| Arc::new(MacMic::new()) as Arc<dyn jez_core::traits::Mic>),
     }
 }

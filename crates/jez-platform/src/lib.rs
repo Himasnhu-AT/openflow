@@ -26,6 +26,8 @@ pub struct Platform {
     pub devices: Arc<dyn AudioDevices>,
     pub apps: Arc<dyn Apps>,
     pub sounds: Arc<dyn Sounds>,
+    /// A fresh, independent microphone (meetings record separately from dictation, as in the Swift app).
+    pub new_mic: Arc<dyn Fn() -> Arc<dyn Mic> + Send + Sync>,
 }
 
 impl Platform {
