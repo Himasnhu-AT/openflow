@@ -482,6 +482,8 @@ mod tests {
         assert!(s.config.learned_signals.len() <= LEARNED_SIGNALS_LIMIT);
         let saved = Config::load().unwrap();
         assert_eq!(saved.dictionary, s.config.dictionary);
+        assert_eq!(saved.learned_signals, s.config.learned_signals);
+        // Expected from TextRules.learnNames: the corrected name with what was heard as its sound-alike.
         assert!(s.config.dictionary.iter().any(|l| l.contains("Siobhan")), "{:?}", s.config.dictionary);
     }
 
