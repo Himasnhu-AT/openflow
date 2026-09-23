@@ -17,3 +17,6 @@ Resources/AppIcon-personal.icns
 
 # Agent worktrees
 .claude/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
