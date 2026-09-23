@@ -71,18 +71,24 @@ pub fn read_frame(r: &mut impl Read) -> std::io::Result<Option<Frame>> {
     }
     let len = u32::from_le_bytes(len) as usize;
     if len == 0 || len > MAX_HEADER {
-        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, format!("bad header length {len}")));
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("bad header length {len}"),
+        ));
     }
     let mut buf = vec![0u8; len];
     r.read_exact(&mut buf)?;
-    let header: Value =
-        serde_json::from_slice(&buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let header: Value = serde_json::from_slice(&buf)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let n = header.get("audio").and_then(Value::as_u64).unwrap_or(0) as usize;
     let mut audio = Vec::new();
     if n > 0 {
         let mut bytes = vec![0u8; n * 4];
         r.read_exact(&mut bytes)?;
-        audio = bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        audio = bytes
+            .chunks_exact(4)
+            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .collect();
     }
     Ok(Some(Frame { header, audio }))
 }
@@ -95,8 +101,14 @@ pub fn helper_path() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os("JEZFLOW_HELPER").filter(|p| !p.is_empty()) {
         return Some(PathBuf::from(p));
     }
-    if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
-        for name in [exe_name(HELPER_NAME), exe_name(&format!("{HELPER_NAME}-{}", target_triple()))] {
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(Path::to_path_buf))
+    {
+        for name in [
+            exe_name(HELPER_NAME),
+            exe_name(&format!("{HELPER_NAME}-{}", target_triple())),
+        ] {
             let p = dir.join(name);
             if p.is_file() {
                 return Some(p);
@@ -187,9 +199,14 @@ impl Sidecar {
     /// Async request. Resolves when the helper answers or dies.
     pub async fn request(&self, method: &str, params: Value, audio: &[f32]) -> Result<Value> {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        self.send(method, params, audio, Box::new(move |r| {
-            let _ = tx.send(r);
-        }))?;
+        self.send(
+            method,
+            params,
+            audio,
+            Box::new(move |r| {
+                let _ = tx.send(r);
+            }),
+        )?;
         match rx.await {
             Ok(Ok(v)) => Ok(v),
             Ok(Err(e)) => Err(anyhow!(e)),
@@ -198,11 +215,22 @@ impl Sidecar {
     }
 
     /// Blocking request (for sync traits and the restore thread). Don't call from a current-thread runtime.
-    pub fn request_blocking(&self, method: &str, params: Value, audio: &[f32], timeout: Duration) -> Result<Value> {
+    pub fn request_blocking(
+        &self,
+        method: &str,
+        params: Value,
+        audio: &[f32],
+        timeout: Duration,
+    ) -> Result<Value> {
         let (tx, rx) = mpsc::channel();
-        self.send(method, params, audio, Box::new(move |r| {
-            let _ = tx.send(r);
-        }))?;
+        self.send(
+            method,
+            params,
+            audio,
+            Box::new(move |r| {
+                let _ = tx.send(r);
+            }),
+        )?;
         match rx.recv_timeout(timeout) {
             Ok(Ok(v)) => Ok(v),
             Ok(Err(e)) => Err(anyhow!(e)),
@@ -220,7 +248,10 @@ impl Sidecar {
         }
         let frame = encode_frame(&Value::Object(header), audio);
         let (generation, frames) = self.connection()?;
-        self.pending.lock().unwrap().insert(id, (generation, waiter));
+        self.pending
+            .lock()
+            .unwrap()
+            .insert(id, (generation, waiter));
         // `died` clears the connection before sweeping pending requests: if the connection is already gone, the
         // sweep may have missed this one, so fail it here.
         let alive = self.conn.lock().unwrap().as_ref().map(|c| c.generation) == Some(generation);
@@ -262,22 +293,33 @@ impl Sidecar {
         let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         let (tx, rx) = mpsc::channel::<Vec<u8>>();
         let child = Arc::new(Mutex::new(child));
-        thread::Builder::new().name("jezflow-helper-writer".into()).spawn(move || writer(stdin, rx))?;
+        thread::Builder::new()
+            .name("jezflow-helper-writer".into())
+            .spawn(move || writer(stdin, rx))?;
         let me = self.me.clone();
         let reader_child = child.clone();
         thread::Builder::new()
             .name("jezflow-helper-reader".into())
             .spawn(move || reader(me, stdout, generation, reader_child))?;
         tracing::info!(helper = %path.display(), generation, "jezflow-helper started");
-        Ok(Conn { generation, frames: tx, child })
+        Ok(Conn {
+            generation,
+            frames: tx,
+            child,
+        })
     }
 
     fn dispatch(&self, frame: Frame) {
         let h = &frame.header;
         if let Some(id) = h.get("id").and_then(Value::as_u64) {
-            let Some((_, waiter)) = self.pending.lock().unwrap().remove(&id) else { return };
+            let Some((_, waiter)) = self.pending.lock().unwrap().remove(&id) else {
+                return;
+            };
             let reply = match h.get("error") {
-                Some(e) => Err(e.as_str().map(str::to_owned).unwrap_or_else(|| e.to_string())),
+                Some(e) => Err(e
+                    .as_str()
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| e.to_string())),
                 None => Ok(h.get("result").cloned().unwrap_or(Value::Null)),
             };
             waiter(reply);
@@ -290,7 +332,9 @@ impl Sidecar {
                     sink(&frame.audio);
                 }
             }
-            "tapRestarted" => tracing::info!("system audio tap rebuilt after an output device change"),
+            "tapRestarted" => {
+                tracing::info!("system audio tap rebuilt after an output device change")
+            }
             "log" => {
                 let msg = h.get("message").and_then(Value::as_str).unwrap_or("");
                 match h.get("level").and_then(Value::as_str).unwrap_or("info") {
@@ -314,8 +358,15 @@ impl Sidecar {
         }
         let failed: Vec<Waiter> = {
             let mut pending = self.pending.lock().unwrap();
-            let ids: Vec<u64> = pending.iter().filter(|(_, (g, _))| *g == generation).map(|(id, _)| *id).collect();
-            ids.into_iter().filter_map(|id| pending.remove(&id)).map(|(_, w)| w).collect()
+            let ids: Vec<u64> = pending
+                .iter()
+                .filter(|(_, (g, _))| *g == generation)
+                .map(|(id, _)| *id)
+                .collect();
+            ids.into_iter()
+                .filter_map(|id| pending.remove(&id))
+                .map(|(_, w)| w)
+                .collect()
         };
         for w in failed {
             w(Err(format!("{HELPER_NAME} exited")));
@@ -340,19 +391,25 @@ impl Sidecar {
             return; // nothing to put back; the next request spawns a fresh helper
         }
         let me = self.me.clone();
-        let _ = thread::Builder::new().name("jezflow-helper-restore".into()).spawn(move || {
-            thread::sleep(Duration::from_millis(500));
-            if let Some(sc) = me.upgrade() {
-                sc.restore_state();
-            }
-        });
+        let _ = thread::Builder::new()
+            .name("jezflow-helper-restore".into())
+            .spawn(move || {
+                thread::sleep(Duration::from_millis(500));
+                if let Some(sc) = me.upgrade() {
+                    sc.restore_state();
+                }
+            });
     }
 
     /// Replays load / setVocabulary / tapStart on a fresh helper.
     fn restore_state(&self) {
         let (version, vocabulary, tap) = {
             let r = self.restore.lock().unwrap();
-            (r.version.clone(), r.vocabulary.clone(), r.tap_bundle.clone())
+            (
+                r.version.clone(),
+                r.vocabulary.clone(),
+                r.tap_bundle.clone(),
+            )
         };
         let long = Duration::from_secs(600);
         if let Some(v) = version {
@@ -365,12 +422,19 @@ impl Sidecar {
             }
         }
         if !vocabulary.is_empty() {
-            if let Err(e) = self.request_blocking("setVocabulary", json!({ "terms": vocabulary }), &[], long) {
+            if let Err(e) =
+                self.request_blocking("setVocabulary", json!({ "terms": vocabulary }), &[], long)
+            {
                 tracing::error!("{HELPER_NAME} restart: setVocabulary failed: {e:#}");
             }
         }
         if let Some(bundle) = tap {
-            if let Err(e) = self.request_blocking("tapStart", json!({ "bundle": bundle }), &[], TAP_START_TIMEOUT) {
+            if let Err(e) = self.request_blocking(
+                "tapStart",
+                json!({ "bundle": bundle }),
+                &[],
+                TAP_START_TIMEOUT,
+            ) {
                 tracing::error!("{HELPER_NAME} restart: tapStart failed: {e:#}");
             }
         }
@@ -395,7 +459,11 @@ impl Sidecar {
 
     /// Process id of the running helper (tests use it to simulate a crash).
     pub fn pid(&self) -> Option<u32> {
-        self.conn.lock().unwrap().as_ref().map(|c| c.child.lock().unwrap().id())
+        self.conn
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|c| c.child.lock().unwrap().id())
     }
 
     // ------------------------------------------------------------------ typed calls
@@ -406,13 +474,16 @@ impl Sidecar {
 
     pub async fn load(&self, version: &str) -> Result<()> {
         self.restore.lock().unwrap().version = Some(version.to_owned());
-        self.request("load", json!({ "version": version }), &[]).await?;
+        self.request("load", json!({ "version": version }), &[])
+            .await?;
         self.model_ready.store(true, Ordering::SeqCst);
         Ok(())
     }
 
     pub async fn transcribe(&self, samples: &[f32], rescore: bool) -> Result<String> {
-        let r = self.request("transcribe", json!({ "rescore": rescore }), samples).await?;
+        let r = self
+            .request("transcribe", json!({ "rescore": rescore }), samples)
+            .await?;
         Ok(text_of(&r))
     }
 
@@ -425,30 +496,45 @@ impl Sidecar {
             }
             r.vocabulary = terms.to_vec();
         }
-        self.request("setVocabulary", json!({ "terms": terms }), &[]).await.map(|_| ())
+        self.request("setVocabulary", json!({ "terms": terms }), &[])
+            .await
+            .map(|_| ())
     }
 
     pub async fn sense_voice(&self, samples: &[f32]) -> Result<String> {
-        Ok(text_of(&self.request("senseVoice", Value::Null, samples).await?))
+        Ok(text_of(
+            &self.request("senseVoice", Value::Null, samples).await?,
+        ))
     }
 
     pub async fn names(&self) -> Result<Vec<String>> {
         let r = self.request("names", Value::Null, &[]).await?;
         Ok(r.get("names")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_owned))
+                    .collect()
+            })
             .unwrap_or_default())
     }
 
     /// Number of Core Audio processes whose bundle id matches (debug, `--tapprocs`).
     pub async fn tap_processes(&self, matching: &str) -> Result<usize> {
-        let r = self.request("tapProcesses", json!({ "match": matching }), &[]).await?;
+        let r = self
+            .request("tapProcesses", json!({ "match": matching }), &[])
+            .await?;
         Ok(r.get("count").and_then(Value::as_u64).unwrap_or(0) as usize)
     }
 
     pub fn tap_start(&self, bundle: &str, sink: ChunkSink) -> Result<()> {
         *self.tap_sink.lock().unwrap() = Some(sink);
-        match self.request_blocking("tapStart", json!({ "bundle": bundle }), &[], TAP_START_TIMEOUT) {
+        match self.request_blocking(
+            "tapStart",
+            json!({ "bundle": bundle }),
+            &[],
+            TAP_START_TIMEOUT,
+        ) {
             Ok(_) => {
                 self.restore.lock().unwrap().tap_bundle = Some(bundle.to_owned());
                 Ok(())
@@ -487,7 +573,11 @@ impl Drop for Sidecar {
 }
 
 fn text_of(v: &Value) -> String {
-    v.get("text").and_then(Value::as_str).unwrap_or("").trim().to_owned()
+    v.get("text")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_owned()
 }
 
 fn writer(stdin: ChildStdin, rx: mpsc::Receiver<Vec<u8>>) {
@@ -598,7 +688,10 @@ mod tests {
     #[test]
     fn frame_round_trip_with_audio() {
         let audio = vec![0.5f32, -1.0, 0.25];
-        let bytes = encode_frame(&json!({"id": 7, "method": "transcribe", "params": {"rescore": true}}), &audio);
+        let bytes = encode_frame(
+            &json!({"id": 7, "method": "transcribe", "params": {"rescore": true}}),
+            &audio,
+        );
         let len = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;
         assert_eq!(bytes.len(), 4 + len + 12);
         let f = read_frame(&mut &bytes[..]).unwrap().unwrap();
@@ -620,7 +713,10 @@ mod tests {
         let mut bytes = encode_frame(&json!({"event": "tapRestarted"}), &[]);
         bytes.extend(encode_frame(&json!({"event": "tapAudio"}), &[1.0; 1600]));
         let mut r = &bytes[..];
-        assert_eq!(read_frame(&mut r).unwrap().unwrap().header["event"], "tapRestarted");
+        assert_eq!(
+            read_frame(&mut r).unwrap().unwrap().header["event"],
+            "tapRestarted"
+        );
         assert_eq!(read_frame(&mut r).unwrap().unwrap().audio.len(), 1600);
         assert!(read_frame(&mut r).unwrap().is_none());
     }
@@ -628,12 +724,15 @@ mod tests {
     #[test]
     fn missing_helper_errors() {
         let sc = Sidecar::with_path(None);
-        let err = sc.request_blocking("ping", Value::Null, &[], Duration::from_secs(1)).unwrap_err();
+        let err = sc
+            .request_blocking("ping", Value::Null, &[], Duration::from_secs(1))
+            .unwrap_err();
         assert!(err.to_string().contains("not found"));
     }
 
     fn built_helper() -> Option<PathBuf> {
-        let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sidecar/jezflow-helper/.build/release/jezflow-helper");
+        let p = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../sidecar/jezflow-helper/.build/release/jezflow-helper");
         p.is_file().then_some(p)
     }
 
@@ -653,7 +752,11 @@ mod tests {
         assert!(err.to_string().contains("still loading"), "{err}");
         // crash: the next request spawns a fresh helper
         let pid = sc.pid().unwrap();
-        std::process::Command::new("kill").arg("-9").arg(pid.to_string()).status().unwrap();
+        std::process::Command::new("kill")
+            .arg("-9")
+            .arg(pid.to_string())
+            .status()
+            .unwrap();
         tokio::time::sleep(Duration::from_millis(300)).await;
         sc.ping().await.unwrap();
         assert_ne!(sc.pid().unwrap(), pid);
