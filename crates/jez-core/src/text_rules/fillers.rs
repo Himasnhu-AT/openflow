@@ -6,7 +6,6 @@ use once_cell::sync::Lazy;
 use super::util::{find_caps, replace_all, rx, trim_hspace, trim_punct};
 
 static FILLER: Lazy<Regex> = Lazy::new(|| rx(r"(?i)(^|[\s,])(um+|uh+|uhm|erm?|hmm+|mm+)\b[,.]?\s*"));
-static STUTTER: Lazy<Regex> = Lazy::new(|| rx(r"(?i)\b(\w+)([,.]?\s+)\1\b(?=[\s,.!?]|$)"));
 
 /// "scratch that" / "forget that" / "never mind" throw away what was said just before it: the unfinished
 /// sentence it sits in, or, when the transcriber already closed that sentence, the whole previous sentence.
@@ -171,20 +170,102 @@ pub fn apply_repeats(text: &str) -> String {
     text.to_string()
 }
 
-/// "this is fair a fair bit of work" -> "this is a fair bit of work": a word restarted with its article.
-/// The Swift lookbehind `(?<!\b(?:the|a|an|of|in|on|at|by|to|for)\s)` is split into fixed-length lookbehinds.
-static ARTICLE_RESTART: Lazy<Regex> = Lazy::new(|| {
-    let behind: String = ["the", "a", "an", "of", "in", "on", "at", "by", "to", "for"]
-        .iter()
-        .map(|w| format!(r"(?<!\b{w}\s)"))
-        .collect();
-    rx(&format!(r"(?i)(^|{behind}\b)(\w+)[,]?\s+(a|an|the)\s+\2\b"))
-});
 static SPACES: Lazy<Regex> = Lazy::new(|| rx(r"\s{2,}"));
 static LEADING: Lazy<Regex> = Lazy::new(|| rx(r"^[,\s]+"));
+static WORD_RUN: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new(r"\w+").expect("regex"));
 
+/// Maximal `\w` runs (byte ranges). Every match of the backreference rules below starts at one of these.
+fn runs(text: &str) -> Vec<(usize, usize)> {
+    WORD_RUN.find_iter(text).map(|m| (m.start(), m.end())).collect()
+}
+
+/// ICU compares `(?i)` backreferences caselessly; fancy-regex does not, so the two rules that use one are
+/// hand-coded over word runs.
+fn same_caseless(a: &str, b: &str) -> bool {
+    a == b || a.to_lowercase() == b.to_lowercase()
+}
+
+/// Length of `[,.]?\s+` (or `[,]?\s+` when `dots` is false) at the start of `s`, if it matches.
+fn separator_len(s: &str, dots: bool) -> Option<usize> {
+    let mut len = 0;
+    let mut it = s.chars().peekable();
+    if let Some(&c) = it.peek() {
+        if c == ',' || (dots && c == '.') {
+            len += 1;
+            it.next();
+        }
+    }
+    let ws: usize = it.take_while(|c| c.is_whitespace()).map(char::len_utf8).sum();
+    (ws > 0).then_some(len + ws)
+}
+
+/// `(?i)\b(\w+)([,.]?\s+)\1\b(?=[\s,.!?]|$)` -> `$1`, one pass.
+fn stutter_pass(text: &str) -> String {
+    let rs = runs(text);
+    let mut out = String::with_capacity(text.len());
+    let (mut last, mut k) = (0, 0);
+    while k < rs.len() {
+        let (s, e) = rs[k];
+        let matched = separator_len(&text[e..], true).and_then(|sep| {
+            let next = *rs.get(k + 1)?;
+            let ok = next.0 == e + sep
+                && same_caseless(&text[s..e], &text[next.0..next.1])
+                && text[next.1..].chars().next().is_none_or(|c| c.is_whitespace() || ",.!?".contains(c));
+            ok.then_some(next.1)
+        });
+        match matched {
+            Some(end) => {
+                out.push_str(&text[last..e]);
+                last = end;
+                k += 2;
+            }
+            None => k += 1,
+        }
+    }
+    out.push_str(&text[last..]);
+    out
+}
+
+const ARTICLE_BLOCKERS: &[&str] = &["the", "a", "an", "of", "in", "on", "at", "by", "to", "for"];
+
+/// "this is fair a fair bit of work" -> "this is a fair bit of work": a word restarted with its article.
+/// `(?i)(^|(?<!\b(?:the|a|an|of|in|on|at|by|to|for)\s)\b)(\w+)[,]?\s+(a|an|the)\s+\2\b` -> `$1$3 $2`.
 pub fn article_restart(text: &str) -> String {
-    replace_all(&ARTICLE_RESTART, text, "$1$3 $2")
+    let rs = runs(text);
+    let mut out = String::with_capacity(text.len());
+    let (mut last, mut k) = (0, 0);
+    while k + 2 < rs.len() {
+        let (s, e) = rs[k];
+        let blocked = s > 0 && {
+            // One whitespace char before the word, and before that a whole blocker word.
+            let before = &text[..s];
+            let ws = before.chars().next_back().filter(|c| c.is_whitespace());
+            ws.is_some_and(|c| {
+                let p = s - c.len_utf8();
+                k > 0 && rs[k - 1].1 == p && ARTICLE_BLOCKERS.contains(&text[rs[k - 1].0..p].to_lowercase().as_str())
+            })
+        };
+        let (a, w2) = (rs[k + 1], rs[k + 2]);
+        let article = text[a.0..a.1].to_lowercase();
+        let ok = !blocked
+            && separator_len(&text[e..], false).is_some_and(|sep| e + sep == a.0)
+            && matches!(article.as_str(), "a" | "an" | "the")
+            && text[a.1..w2.0].chars().all(char::is_whitespace)
+            && a.1 < w2.0
+            && same_caseless(&text[s..e], &text[w2.0..w2.1]);
+        if ok {
+            out.push_str(&text[last..s]);
+            out.push_str(&text[a.0..a.1]);
+            out.push(' ');
+            out.push_str(&text[s..e]);
+            last = w2.1;
+            k += 3;
+        } else {
+            k += 1;
+        }
+    }
+    out.push_str(&text[last..]);
+    out
 }
 
 pub fn strip_fillers(text: &str) -> String {
@@ -193,7 +274,7 @@ pub fn strip_fillers(text: &str) -> String {
     t = replace_all(&FILLER, &t, "$1");
     // Run twice so "we we we" collapses fully.
     for _ in 0..2 {
-        t = replace_all(&STUTTER, &t, "$1");
+        t = stutter_pass(&t);
     }
     t = replace_all(&SPACES, &t, " ");
     t = replace_all(&LEADING, &t, "");

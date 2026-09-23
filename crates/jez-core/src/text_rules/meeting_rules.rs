@@ -7,7 +7,7 @@ use super::commands::apply_numbers;
 use super::dictionary::apply_dictionary;
 use super::fillers::strip_fillers;
 use super::layout::question_marks;
-use super::util::{replace_all, rx, upper_first};
+use super::util::{is_punct, replace_all, rx, upper_first};
 
 const ENGLISH_STOPWORDS: &[&str] = &[
     "the", "and", "is", "it", "to", "you", "i", "we", "a", "of", "in", "that", "on", "for", "so", "this", "be", "have", "are",
@@ -95,5 +95,24 @@ pub fn chinese_script(text: &str, traditional: bool) -> String {
     if !traditional || !contains_chinese(text) {
         return text.to_string();
     }
-    zhconv::zhconv(text, zhconv::Variant::ZhHant)
+    // zhconv's zh-Hant tables also rewrite quotes (’ -> 』); ICU leaves punctuation alone, so only runs of
+    // non-ASCII, non-punctuation, non-space characters are converted.
+    let convertible = |c: char| !c.is_ascii() && !c.is_whitespace() && !is_punct(c);
+    let mut out = String::with_capacity(text.len());
+    let mut run = String::new();
+    for c in text.chars() {
+        if convertible(c) {
+            run.push(c);
+            continue;
+        }
+        if !run.is_empty() {
+            out.push_str(&zhconv::zhconv(&run, zhconv::Variant::ZhHant));
+            run.clear();
+        }
+        out.push(c);
+    }
+    if !run.is_empty() {
+        out.push_str(&zhconv::zhconv(&run, zhconv::Variant::ZhHant));
+    }
+    out
 }

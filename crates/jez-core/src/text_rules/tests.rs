@@ -77,6 +77,21 @@ fn self_test_all_pass() {
     assert_eq!(passed, 106); // SelfTest.swift has 110; the 2 Segmenter and 2 Meeting checks belong to team B
 }
 
+/// Differences found by diffing against the compiled Swift TextRules on random corpora (expected values are the
+/// Swift outputs).
+#[test]
+fn swift_parity_regressions() {
+    use super::*;
+    // ICU compares (?i) backreferences caselessly.
+    assert_eq!(strip_fillers("go i I two reasons"), "go i two reasons");
+    assert_eq!(strip_fillers("five the The billion"), "five the billion");
+    assert_eq!(strip_fillers("this is fair a Fair bit"), "this is a fair bit");
+    assert_eq!(strip_fillers("look at the time the time"), "look at the time the time");
+    // ICU Hans-Hant leaves punctuation alone.
+    assert_eq!(chinese_script("Mail ’ 点 我们", true), "Mail ’ 點 我們");
+    assert_eq!(chinese_script("这个问题没有时间", true), "這個問題沒有時間");
+}
+
 #[test]
 fn benchmark_runs() {
     assert!(selftest::rules_benchmark_ms() > 0.0);
