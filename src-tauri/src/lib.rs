@@ -119,6 +119,7 @@ pub fn run() {
             commands::overlay_action,
             commands::overlay_state,
             commands::log_frontend,
+            commands::initial_page,
         ])
         .setup(move |app| {
             let handle_app = app.handle().clone();
@@ -127,6 +128,7 @@ pub fn run() {
             windows::setup_overlay(&handle_app);
             orchestrator::spawn(handle_app.clone(), shared.clone(), handle.clone(), rx);
             let settings = settings_arg();
+            shared.runtime().initial_page = settings.clone().flatten();
             if settings.is_some() || shared.config().window_at_launch {
                 windows::open_main(&handle_app, settings.flatten().as_deref());
             }

@@ -193,3 +193,9 @@ pub fn overlay_state(state: State<'_, AppState>) -> OverlayState {
 pub fn log_frontend(window: String, message: String) {
     tracing::error!(target: "frontend", "[{window}] {message}");
 }
+
+/// Page requested with `--settings <Page>`, returned once.
+#[tauri::command]
+pub fn initial_page(state: State<'_, AppState>) -> Option<String> {
+    state.shared.runtime().initial_page.take()
+}

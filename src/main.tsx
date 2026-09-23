@@ -59,6 +59,11 @@ function App() {
       const next = pageFrom(p);
       if (next) setPage(next);
     });
+    // `--settings <Page>` on launch: the navigate event can fire before this listener exists, so ask once.
+    api.initialPage().then((p) => {
+      const next = pageFrom(p);
+      if (next) setPage(next);
+    }, () => {});
     return () => void un.then((f) => f());
   }, []);
 

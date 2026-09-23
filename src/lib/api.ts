@@ -215,6 +215,8 @@ export const api = {
   overlayAction: (action: "startMeeting" | "dismissMeeting" | "stopMeeting") =>
     invoke<void>("overlay_action", { action }),
   overlayState: () => invoke<OverlayState>("overlay_state"),
+  /** Page requested with `--settings <Page>` at launch; returned once, then null. */
+  initialPage: () => invoke<string | null>("initial_page"),
 };
 
 // ------------------------------------------------------------------------------------------------ events

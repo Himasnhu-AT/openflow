@@ -430,6 +430,7 @@ const handlers: Record<string, Handler> = {
     else setMockOverlay({ kind: "hidden" });
   },
   overlay_state: () => overlay,
+  initial_page: () => null,
 };
 
 export async function mockInvoke(cmd: string, args: Record<string, unknown>): Promise<unknown> {

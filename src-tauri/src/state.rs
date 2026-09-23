@@ -48,6 +48,8 @@ pub struct Runtime {
     pub external_names: Vec<String>,
     /// Sticky tone chosen from the tray; None = automatic per app.
     pub tone_override: Option<String>,
+    /// `--settings <Page>`: handed to the main window once it asks.
+    pub initial_page: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

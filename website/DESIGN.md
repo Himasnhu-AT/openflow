@@ -1,0 +1,159 @@
+---
+name: OpenFlow website
+description: Private, local-first dictation for the Mac, told in the language of a mechanical keyboard.
+colors:
+  plate-cobalt: "#1d3fd6"
+  plate-cobalt-deep: "#132a9e"
+  cap-alpha: "#e8eaf0"
+  cap-alpha-side: "#c3c8d4"
+  cap-mod: "#262b36"
+  cap-mod-side: "#12151c"
+  cap-accent: "#d6f250"
+  cap-accent-side: "#a6c21c"
+  legend-ink: "#10131a"
+  on-plate: "#f3f5ff"
+  on-plate-soft: "#c9d1ff"
+typography:
+  display:
+    fontFamily: "Archivo, 'Helvetica Neue', Arial, sans-serif"
+    fontSize: "clamp(2.75rem, 7.2vw, 6rem)"
+    fontWeight: 800
+    lineHeight: 0.95
+    letterSpacing: "-0.03em"
+    fontVariation: "'wdth' 112"
+  headline:
+    fontFamily: "Archivo, 'Helvetica Neue', Arial, sans-serif"
+    fontSize: "clamp(2rem, 4.2vw, 3.5rem)"
+    fontWeight: 800
+    lineHeight: 1
+    letterSpacing: "-0.025em"
+    fontVariation: "'wdth' 108"
+  body:
+    fontFamily: "Archivo, 'Helvetica Neue', Arial, sans-serif"
+    fontSize: "1.125rem"
+    fontWeight: 400
+    lineHeight: 1.55
+  legend:
+    fontFamily: "Archivo, 'Helvetica Neue', Arial, sans-serif"
+    fontSize: "0.8125rem"
+    fontWeight: 600
+    letterSpacing: "0.04em"
+    fontVariation: "'wdth' 88"
+rounded:
+  cap: "14px"
+  cap-top: "10px"
+  plate: "28px"
+spacing:
+  u: "4px"
+  gap: "12px"
+  section: "clamp(96px, 14vw, 180px)"
+components:
+  button-return:
+    backgroundColor: "{colors.cap-accent}"
+    textColor: "{colors.legend-ink}"
+    rounded: "{rounded.cap}"
+    padding: "18px 28px 24px"
+  button-mod:
+    backgroundColor: "{colors.cap-mod}"
+    textColor: "{colors.cap-alpha}"
+    rounded: "{rounded.cap}"
+    padding: "14px 20px 20px"
+  key-alpha:
+    backgroundColor: "{colors.cap-alpha}"
+    textColor: "{colors.legend-ink}"
+    rounded: "{rounded.cap}"
+---
+
+# Design System: OpenFlow website
+
+## Overview
+
+**Creative North Star: "The Colorway Sheet"**
+
+OpenFlow is one chord, ⌘;. The site is built from the material of a mechanical keyboard: sculpted PBT keycaps with dye-sub legends, sitting on an anodized plate. A keyboard reads from above, like a colorway render sheet. Every interactive thing is a key. It has a top surface, a darker skirt below it, and a travel distance. Pressing a key sinks it. Information is printed the way keycaps print it: the main legend on top, a sub-legend on the front face.
+
+The page is light-filled and saturated, because it's a keyboard on a desk in daylight rather than a dark dev tool. A cobalt plate carries most of the page. Light-grey alphas carry reading. Charcoal modifiers carry structure. One lime accent colour is reserved for the keys that matter: ⌘, ; and Return (Download).
+
+**Key Characteristics:**
+- Keys are 3D objects: a top face plus a darker skirt, built with layered borders and an offset shadow, never flat cards.
+- Legends and sub-legends: headline on the cap, detail printed on the front face.
+- Cobalt plate as the page field. Alphas for reading surfaces. Lime only on the ⌘ ; Return family.
+- One authored motion: key travel (press, sink, release). Nothing floats in on scroll.
+
+## Colors
+
+This is a committed colorway: a saturated cobalt plate owns 40–60% of the page, with neutral caps and one lime accent family.
+
+### Primary
+- **Anodized Cobalt Plate** (plate-cobalt): the page ground and section fields. It's the keyboard case the caps sit on.
+- **Deep Cobalt** (plate-cobalt-deep): recessed wells between caps and the plate's inner shadow.
+
+### Secondary
+- **Lime Accent Cap** (cap-accent, skirt cap-accent-side): only on ⌘, ;, the Return-shaped Download key, and the active state of a key group.
+
+### Neutral
+- **PBT Alpha Grey** (cap-alpha, skirt cap-alpha-side): reading surfaces such as demo screens, notes and legend sheets.
+- **Charcoal Modifier** (cap-mod, skirt cap-mod-side): nav keys, secondary buttons, and terminal and code surfaces.
+- **Legend Ink** (legend-ink): text on alphas and on accent caps.
+- **Plate White** and **Plate Soft** (on-plate, on-plate-soft): text directly on cobalt. Secondary text is tinted from the plate's hue, never grey.
+
+**The Lime Budget Rule.** Lime appears only on ⌘, ; and Return, plus at most one active key per group. If a second, unrelated thing turns lime, remove it.
+
+## Typography
+
+**Display, Body and Legend Font:** Archivo (variable: wght and wdth), falling back to Helvetica Neue and Arial.
+
+**Character:** a single engineered grotesk, stretched wide for the headlines that sit on the plate and narrowed for legends, the way keycap legends use one family at different widths.
+
+### Hierarchy
+- **Display** (800, clamp(2.75rem, 7.2vw, 6rem), 0.95, wdth 112): the single hero line.
+- **Headline** (800, clamp(2rem, 4.2vw, 3.5rem), 1.0, wdth 108): section statements.
+- **Body** (400, 1.125rem, 1.55): prose, capped at a 62ch measure.
+- **Legend** (600, 0.8125rem, +0.04em, wdth 88): text printed on keys, as main legends and front sub-legends. Sentence case unless the real key is a symbol.
+
+**The Legend Rule.** Text on a key is short and printed like a legend: a symbol or one to three words on top, and the explanation on the front face.
+
+## Layout
+
+- Sections are plates: full-bleed cobalt or alpha fields with generous vertical space (spacing.section).
+- Content sits on a 12-column grid, max 1200px.
+- Key grids use a 1u unit of 64–88px depending on the viewport. Key widths are multiples of the unit (1u, 1.25u, 1.5u, 2.25u, 6.25u), as on a real keyboard.
+- On mobile the key grids stay unit-based and wrap by whole keys; a key is never squashed.
+
+## Elevation & Depth
+
+Depth is physical key height, not ambient glow. Each cap is a top face plus a darker skirt, drawn with bottom-heavy borders, and it sits on the plate with a short offset shadow. Pressing moves the top face down by the skirt height and shortens the shadow.
+
+### Shadow Vocabulary
+- **Cap rest** (`0 6px 0 var(--skirt), 0 10px 18px rgba(10,20,70,.28)`): every key at rest.
+- **Cap pressed** (`0 1px 0 var(--skirt), 0 3px 6px rgba(10,20,70,.3)`, translateY 5px): held or active keys.
+
+## Shapes
+
+Keys are rounded rectangles with a 14px cap radius, and the top face is inset with a 10px radius, like a sculpted dish. The Download key is ISO-Return shaped (an L), made with clip-path. The plate has a 28px radius where it's framed.
+
+## Components
+
+### Keys (signature)
+- **Alpha, Mod, Accent** variants share one structure: skirt, top face, legend and optional front sub-legend.
+- **States:** rest; hover (top face lightens 3%); pressed or held (sinks 5px); focus-visible (2px lime ring offset outside the skirt on mods and alphas, ink ring on accent keys); disabled (no skirt, 50% legend).
+
+### Buttons
+- **Return (primary):** a lime ISO-Return key labelled "Download for Mac", with a "macOS 15+ · Apple Silicon" sub-legend.
+- **Mod (secondary):** a charcoal key, e.g. "View source".
+
+### Demo screen
+A PBT-alpha surface framed as a Mac text field (Messages, Mail, Terminal). It shows live words arriving as you hold the keys, then the polished text replacing them. It is always labelled as a simulation.
+
+## Do's and Don'ts
+
+### Do:
+- **Do** make anything clickable a key with a skirt and travel.
+- **Do** let people press the real ⌘; on their keyboard to run the demo.
+- **Do** tint secondary text on cobalt from the plate hue (on-plate-soft).
+
+### Don't:
+- **Don't** use flat, same-size icon cards. Group items as key clusters with legends instead.
+- **Don't** use gradient text, glassmorphism or glow halos. Depth comes from key height.
+- **Don't** put lime on anything outside the ⌘ ; Return family.
+- **Don't** animate sections in on scroll. The only motion is key travel and the demo text.
