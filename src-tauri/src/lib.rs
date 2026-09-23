@@ -2,6 +2,7 @@
 
 pub mod cli;
 mod commands;
+mod meeting;
 mod orchestrator;
 mod state;
 mod tray;
@@ -143,11 +144,7 @@ pub fn run() {
         // Clicking the Dock icon brings the window back.
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { has_visible_windows, .. } if !has_visible_windows => windows::open_main(app, None),
-        RunEvent::ExitRequested { .. } | RunEvent::Exit => {
-            if let Some(state) = app.try_state::<AppState>() {
-                state.orchestrator.send(orchestrator::Msg::Quit);
-            }
-        }
+        RunEvent::Exit => orchestrator::shutdown_now(),
         _ => {}
     });
 }

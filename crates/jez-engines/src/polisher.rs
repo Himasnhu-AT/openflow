@@ -173,7 +173,8 @@ pub fn local_body(system: &str, user: &str, max_tokens: usize, stream: bool) -> 
 }
 
 pub struct Polisher {
-    config: Config,
+    /// Swappable so settings edits (cloud, learned signals, memory) apply without restarting llama-server.
+    config: std::sync::RwLock<Config>,
     scope: Scope,
     current_is_long: AtomicBool,
     child: Mutex<Option<Child>>,
@@ -191,7 +192,7 @@ impl Polisher {
             .build()
             .unwrap_or_default();
         Self {
-            config,
+            config: std::sync::RwLock::new(config),
             scope,
             current_is_long: AtomicBool::new(false),
             child: Mutex::new(None),
@@ -202,12 +203,17 @@ impl Polisher {
         }
     }
 
-    pub fn config(&self) -> &Config {
-        &self.config
+    pub fn config(&self) -> Config {
+        self.config.read().unwrap().clone()
+    }
+
+    /// Replaces the settings used per request. The server keeps running (model and port changes need a restart).
+    pub fn set_config(&self, config: Config) {
+        *self.config.write().unwrap() = config;
     }
 
     fn base_url(&self) -> String {
-        format!("http://127.0.0.1:{}", self.config.llama_port)
+        format!("http://127.0.0.1:{}", self.config.read().unwrap().llama_port)
     }
 
     /// Set before polishing a long dictation (over 15 s), for the "long dictations" cloud mode.
@@ -216,7 +222,7 @@ impl Polisher {
     }
 
     fn cloud(&self) -> Option<Cloud> {
-        Cloud::new(&self.config, self.scope, self.current_is_long.load(Ordering::SeqCst))
+        Cloud::new(&self.config.read().unwrap(), self.scope, self.current_is_long.load(Ordering::SeqCst))
     }
 
     /// Timings of the last local completion, for logs and `--polishtest`.
@@ -227,14 +233,15 @@ impl Polisher {
     /// Kills any server left on our port (a previous run or model, so the new model always wins), then spawns
     /// llama-server. Does not wait for it to load; see `wait_until_ready`.
     pub async fn start(&self) -> Result<()> {
-        pkill(&format!("llama-server.*--port {}", self.config.llama_port)).await;
+        let config = self.config();
+        pkill(&format!("llama-server.*--port {}", config.llama_port)).await;
         tokio::time::sleep(Duration::from_millis(300)).await;
-        let model = self.config.model_path();
+        let model = config.model_path();
         if !model.exists() {
             bail!("Model not found: {}", model.display());
         }
-        let child = Command::new(&self.config.llama_server_path)
-            .args(llama_args(&model.to_string_lossy(), self.config.llama_port))
+        let child = Command::new(&config.llama_server_path)
+            .args(llama_args(&model.to_string_lossy(), config.llama_port))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -371,7 +378,8 @@ impl Polisher {
 
     /// Meeting notes (map-reduce) through this polisher.
     pub async fn summarize_meeting(&self, transcript: &str) -> Result<String> {
-        crate::notes::summarize_meeting(self, transcript, &self.config.memory).await
+        let memory = self.config.read().unwrap().memory.clone();
+        crate::notes::summarize_meeting(self, transcript, &memory).await
     }
 
     pub async fn meeting_title(&self, summary: &str) -> Result<String> {
@@ -410,7 +418,7 @@ impl PolishBackend for Polisher {
         context: Option<&FieldContext>,
         on_partial: Option<&(dyn for<'s> Fn(&'s str) + Send + Sync)>,
     ) -> Result<String> {
-        let system = prompts::system_prompt(tones, dictionary, memory, examples, &self.config.learned_signals);
+        let system = prompts::system_prompt(tones, dictionary, memory, examples, &self.config().learned_signals);
         let user = prompts::user_message(raw, tone, context);
         let content = match on_partial {
             Some(f) if self.cloud().is_none() => self.stream(&system, &user, 1024, f).await?,

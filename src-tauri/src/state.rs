@@ -70,6 +70,7 @@ pub struct Snapshot {
     pub catalog: Vec<CatalogModel>,
     pub whisper_catalog: CatalogModel,
     pub whisper_server_found: bool,
+    pub whisper_model_installed: bool,
     pub data_dir: String,
 }
 
@@ -142,6 +143,7 @@ impl Shared {
             catalog: catalog::polish_models(),
             whisper_catalog: catalog::whisper(),
             whisper_server_found,
+            whisper_model_installed: paths::models_dir().join(&config.whisper_model).exists(),
             data_dir: paths::data_dir().display().to_string(),
             config,
         }
