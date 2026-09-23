@@ -108,9 +108,13 @@ mod tests {
             _memory: &str,
             _examples: &Examples,
             _context: Option<&FieldContext>,
-            _on_partial: Option<&(dyn Fn(&str) + Send + Sync)>,
+            on_partial: Option<&(dyn for<'s> Fn(&'s str) + Send + Sync)>,
         ) -> anyhow::Result<String> {
             self.seen.lock().unwrap().push(raw.to_string());
+            if let Some(f) = on_partial {
+                let partial = self.reply.chars().take(3).collect::<String>();
+                f(&partial);
+            }
             Ok(self.reply.clone())
         }
     }

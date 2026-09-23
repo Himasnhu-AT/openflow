@@ -384,7 +384,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs team A"]
     async fn set_vocabulary_uses_dictionary_terms() {
         let (fake, live) = setup();
         live.set_vocabulary(

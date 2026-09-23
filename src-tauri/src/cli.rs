@@ -86,7 +86,10 @@ fn history() -> Vec<jez_core::model::Dictation> {
 
 /// Rule-layer checks, no models needed.
 fn selftest() -> bool {
-    let (passed, failures) = text_rules::selftest::self_test();
+    let (mut passed, mut failures) = text_rules::selftest::self_test();
+    let (p2, f2) = data_self_test();
+    passed += p2;
+    failures.extend(f2);
     for f in &failures {
         println!("FAIL {f}");
     }
@@ -95,6 +98,44 @@ fn selftest() -> bool {
         println!("rules: {ms:.2} ms per 60-word dictation");
     }
     failures.is_empty()
+}
+
+/// The SelfTest.swift checks that live outside the rules: segmenter and meeting to-dos.
+fn data_self_test() -> (usize, Vec<String>) {
+    let mut passed = 0;
+    let mut failures = vec![];
+    let mut check = |name: &str, got: String, want: String| {
+        if got == want {
+            passed += 1;
+        } else {
+            failures.push(format!("{name}: got {got:?}, want {want:?}"));
+        }
+    };
+    let got: Arc<Mutex<Vec<(usize, f64)>>> = Arc::default();
+    let g2 = Arc::clone(&got);
+    let seg = jez_core::segmenter::Segmenter::new(Box::new(move |s, t| g2.lock().unwrap().push((s.len(), t))));
+    let mut audio = vec![0f32; 16_000]; // 1 s silence
+    audio.extend((0..24_000).map(|i| (i as f32 * 0.2).sin() * 0.3)); // 1.5 s tone
+    audio.extend(vec![0f32; 16_000]); // 1 s silence
+    for chunk in audio.chunks(150) {
+        seg.push(chunk); // tap-sized chunks
+    }
+    let got = got.lock().unwrap().clone();
+    check("segmenter utterances", got.len().to_string(), "1".into());
+    check("segmenter start", got.first().map(|g| ((g.1 * 10.0) as i64).to_string()).unwrap_or("-1".into()), "7".into());
+
+    let mut m = Meeting::new("t".into(), None, chrono::Utc::now());
+    m.todos = vec![jez_core::model::MeetingTodo {
+        id: uuid::Uuid::new_v4(),
+        text: "Send the deck to Alex by Friday".into(),
+        done: true,
+    }];
+    m.refresh_todos("## Summary\n- a\n## Decisions\n- None\n## Action items\n- Alex: review\n## Your to-dos\n- Send the deck to Alex by Friday\n- Book the venue\n");
+    let todos: Vec<String> = m.todos.iter().map(|t| format!("{}|{}", t.text, t.done)).collect();
+    check("todos parsed", format!("{todos:?}"), format!("{:?}", ["Send the deck to Alex by Friday|true", "Book the venue|false"]));
+    m.refresh_todos("## Your to-dos\n- None");
+    check("todos none", m.todos.len().to_string(), "0".into());
+    (passed, failures)
 }
 
 /// What the field reader sees for the frontmost app (sizes only, no field text).

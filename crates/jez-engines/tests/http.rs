@@ -200,7 +200,6 @@ async fn cloud_complete_stops_on_other_errors() {
 }
 
 #[tokio::test]
-#[ignore = "needs team A (filter_whisper)"]
 async fn cloud_transcribe_multipart() {
     let (port, seen) = serve(vec![reply(200, r#"{"text":" Hello world.","segments":[{"text":" Hello world."}]}"#)]).await;
     let cloud = Cloud::with_env(&cloud_config(), Scope::Dictation, false, None)

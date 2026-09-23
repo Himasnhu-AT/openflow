@@ -468,7 +468,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs team A (text_rules::learn_signals / learn_names / merge_dictionary)"]
     fn set_correction_learns_into_config() {
         let _dir = DataDir::new();
         let mut s = Store::load();

@@ -204,7 +204,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs team A (looks_english)"]
     async fn sensevoice_fallback_for_non_english() {
         let (e, _) = engine("ni hao shi jie", "  你好世界 ", "auto");
         e.load().await.unwrap();
