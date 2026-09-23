@@ -747,6 +747,11 @@ mod tests {
         sc.ping().await.unwrap();
         let err = sc.request("nope", Value::Null, &[]).await.unwrap_err();
         assert!(err.to_string().contains("unknown method"), "{err}");
+        // process listing needs no permission; a bundle id that can't exist matches nothing
+        assert_eq!(
+            sc.tap_processes("com.example.nothing.here").await.unwrap(),
+            0
+        );
         // transcribe before load: the helper's own error comes back
         let err = sc.transcribe(&[0.0; 1600], false).await.unwrap_err();
         assert!(err.to_string().contains("still loading"), "{err}");
