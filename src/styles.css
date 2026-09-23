@@ -751,3 +751,17 @@ input {
   padding: 8px 13px;
   margin-bottom: 2px;
 }
+
+.memory-editor {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--row);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 17px;
+}
