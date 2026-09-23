@@ -241,7 +241,8 @@ fn launch(orc: &Orc) {
         let o = Arc::clone(orc);
         let dictation_mic = Arc::clone(&orc.platform.mic);
         orc.detector.set_is_recording(Arc::new(move || {
-            o.meeting.lock().unwrap().is_some() || dictation_mic.is_running() && o.recording.load(Ordering::SeqCst)
+            // Our own mic use (including its 20 s keep-warm) is not a call.
+            o.meeting.lock().unwrap().is_some() || dictation_mic.is_running()
         }));
         let o = Arc::clone(orc);
         orc.detector.set_on_detected(Arc::new(move |app_name| {
@@ -625,10 +626,6 @@ fn begin_recording(orc: &Orc, alt: bool) {
         let mut d = orc.dictating.lock().unwrap();
         *d = Dictating { use_alt: alt, target_bundle: target, field: field.clone(), ..Default::default() };
     }
-    // `begin` only records state; it is quick, so blocking on the async mutex here is fine.
-    if let Ok(mut t) = orc.typer.try_lock() {
-        t.begin(field.as_ref());
-    }
     match orc.platform.mic.start(&config.microphone) {
         Ok(()) => {
             orc.dictating.lock().unwrap().pressed_at = Some(Instant::now()); // after start(), so its cost never counts as holding
@@ -652,6 +649,8 @@ fn start_live(orc: &Orc) {
     let task = tauri::async_runtime::spawn(async move {
         let config = o.shared.config();
         let field = o.dictating.lock().unwrap().field.clone();
+        // Waits for a retract/finish from the previous dictation still holding the typer, then resets it.
+        o.typer.lock().await.begin(field.as_ref());
         // Names visible where you're typing, plus Contacts/Calendar names, are boosted for this dictation.
         let mut extra = field
             .as_ref()
