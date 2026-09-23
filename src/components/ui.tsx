@@ -65,8 +65,8 @@ export function RowCard({ children, actions, style }: { children: ReactNode; act
 }
 
 /** CardList: rows separated by 1pt border lines. */
-export function CardList({ children }: { children: ReactNode[] }) {
-  const rows = children.flat().filter(Boolean);
+export function CardList({ children }: { children: ReactNode }) {
+  const rows = (Array.isArray(children) ? children.flat() : [children]).filter(Boolean);
   return (
     <div className="card-list">
       {rows.map((row, i) => (
@@ -182,7 +182,7 @@ export function TextField({
       style={{ width, ...style }}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === "Enter" && onSubmit) onSubmit();
+        if (e.key === "Enter" && !e.nativeEvent.isComposing && onSubmit) onSubmit();
       }}
     />
   );
