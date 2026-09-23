@@ -1,0 +1,162 @@
+:root {
+  --accent: rgb(158, 140, 250);
+  color-scheme: dark;
+}
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+* {
+  box-sizing: border-box;
+}
+button {
+  font: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: default;
+}
+
+.pill-window {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Capsule: white(0.1) @ 0.94, 0.12 white stroke, padding 16/10. Hugs its content except in wide modes. */
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  max-width: 100%;
+  border-radius: 999px;
+  background: rgba(26, 26, 26, 0.94);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.pill.wide {
+  width: 100%;
+}
+
+.pill-bars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  flex: none;
+}
+.pill-bar {
+  width: 3px;
+  border-radius: 1.5px;
+  background: rgba(255, 255, 255, 0.9);
+  transition: height 0.08s ease-out;
+}
+
+.pill-live-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.pill-live.measure {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  visibility: hidden;
+  max-height: none;
+}
+.pill-live {
+  font-size: 13px;
+  line-height: 16px;
+  color: rgb(235, 235, 235);
+  overflow: hidden;
+  max-height: 32px;
+  word-break: break-word;
+}
+
+.pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.pill-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+}
+.one-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.pill-button {
+  font-size: 12px;
+  font-weight: 600;
+  color: #000;
+  background: #fff;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+.pill-button:active {
+  background: #ddd;
+}
+.pill-close {
+  color: rgb(153, 153, 153);
+  display: flex;
+  flex: none;
+}
+.pill-red {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff453a;
+  flex: none;
+}
+
+/* Browser dev harness only. */
+.harness {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  background: linear-gradient(135deg, #3a4a6b, #7b5e8a);
+}
+.harness-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.harness-buttons button {
+  font-size: 12px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.harness-frame {
+  outline: 1px dashed rgba(255, 255, 255, 0.35);
+}
