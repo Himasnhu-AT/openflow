@@ -31,7 +31,7 @@ pub trait PolishBackend: Send + Sync {
         memory: &str,
         examples: &Examples,
         context: Option<&FieldContext>,
-        on_partial: Option<&(dyn Fn(&str) + Send + Sync)>,
+        on_partial: Option<&(dyn for<'s> Fn(&'s str) + Send + Sync)>,
     ) -> Result<String>;
 }
 
