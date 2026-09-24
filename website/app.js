@@ -23,7 +23,7 @@ const SCENES = {
     them: "are we still on for tomorrow?",
     placeholder: "iMessage",
     spoken: "um so tomorrow is fine no wait thursday works see you then",
-    final: "thursday works, see you then",
+    final: "thursday works see you then",
   },
   mail: {
     app: "Mail",
@@ -40,8 +40,8 @@ const SCENES = {
     mono: true,
     them: "",
     placeholder: "~ %",
-    spoken: "git rebase dash i head tilde three",
-    final: "git rebase -i HEAD~3",
+    spoken: "cargo test",
+    final: "cargo test",
   },
 };
 
@@ -64,8 +64,11 @@ let state = "idle"; // idle | listening | processing | done
 let words = [];
 let spokenCount = 0;
 let wordTimer = null;
+let finishTimer = null;
 let barTimer = null;
 let touched = false;
+let onAllSpoken = null; // autoplay: release once the whole sentence has been "said"
+let pointerStarted = false;
 
 function renderScene() {
   el.app.textContent = scene.app;
@@ -89,8 +92,7 @@ function span(cls, text) {
 }
 
 function showLive(text) {
-  const caret = span("field__caret", "");
-  el.field.replaceChildren(span("field__live", text), caret);
+  el.field.replaceChildren(span("field__live", text), span("field__caret", ""));
 }
 
 function setKeys(down) {
@@ -134,6 +136,10 @@ function press() {
       spokenCount += 1;
       showLive(words.slice(0, spokenCount).join(" "));
       wordTimer = setTimeout(next, 150 + Math.random() * 120);
+    } else if (onAllSpoken) {
+      const done = onAllSpoken;
+      onAllSpoken = null;
+      wordTimer = setTimeout(done, 450);
     }
   };
   next();
@@ -142,6 +148,7 @@ function press() {
 function release() {
   if (state !== "listening") return;
   clearTimeout(wordTimer);
+  onAllSpoken = null;
   setKeys(false);
   // Released early: the rest of the sentence was still "said".
   showLive(scene.spoken);
@@ -149,7 +156,19 @@ function release() {
   stopBars();
   el.pill.classList.add("is-processing");
   el.pillLabel.textContent = "Transcribing";
-  setTimeout(finish, reduceMotion ? 0 : 520);
+  finishTimer = setTimeout(finish, reduceMotion ? 0 : 520);
+}
+
+// Esc, or a scene switch mid-demo: drop everything, like cancelling a dictation.
+function cancel() {
+  clearTimeout(wordTimer);
+  clearTimeout(finishTimer);
+  onAllSpoken = null;
+  setKeys(false);
+  stopBars();
+  el.pill.hidden = true;
+  state = "idle";
+  showPlaceholder();
 }
 
 function finish() {
@@ -171,27 +190,38 @@ function finish() {
   el.field.classList.add("field--swap");
 }
 
-// Pointer: holding either on-screen key holds the chord.
+// Quick tap toggles, like the app: tap to start, tap again to stop. Used by clicks that come without a
+// pointer press (VoiceOver, switch access) and by Space/Enter on the focused key.
+function toggle() {
+  touched = true;
+  if (state === "listening") release();
+  else press();
+}
+
 for (const k of el.keys) {
+  // Pointer: holding either on-screen key holds the chord.
   k.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     touched = true;
+    pointerStarted = true;
     k.setPointerCapture?.(e.pointerId);
     press();
   });
   k.addEventListener("pointerup", release);
   k.addEventListener("pointercancel", release);
   k.addEventListener("lostpointercapture", release);
-  // Keyboard access to the on-screen keys: Space/Enter held.
+  k.addEventListener("click", () => {
+    if (pointerStarted) {
+      pointerStarted = false; // already handled as a hold
+      return;
+    }
+    toggle();
+  });
   k.addEventListener("keydown", (e) => {
     if ((e.key === " " || e.key === "Enter") && !e.repeat) {
       e.preventDefault();
-      touched = true;
-      press();
+      toggle();
     }
-  });
-  k.addEventListener("keyup", (e) => {
-    if (e.key === " " || e.key === "Enter") release();
   });
 }
 
@@ -202,13 +232,8 @@ window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
     touched = true;
     press();
-  } else if (e.key === "Escape" && state === "listening") {
-    clearTimeout(wordTimer);
-    setKeys(false);
-    stopBars();
-    el.pill.hidden = true;
-    state = "idle";
-    showPlaceholder();
+  } else if (e.key === "Escape" && (state === "listening" || state === "processing")) {
+    cancel();
   }
 });
 window.addEventListener("keyup", (e) => {
@@ -218,12 +243,12 @@ window.addEventListener("keyup", (e) => {
 });
 window.addEventListener("blur", release);
 
-// Scenes.
+// Scenes: switching mid-demo cancels it, then shows the new app.
 const sceneKeys = [...document.querySelectorAll("[data-scene]")];
 for (const b of sceneKeys) {
   b.addEventListener("click", () => {
-    if (state === "listening" || state === "processing") return;
     touched = true;
+    if (state === "listening" || state === "processing") cancel();
     for (const o of sceneKeys) {
       o.classList.toggle("is-on", o === b);
       o.setAttribute("aria-pressed", String(o === b));
@@ -234,20 +259,39 @@ for (const b of sceneKeys) {
   });
 }
 
+// Touch screens have no ⌘; to press.
+if (window.matchMedia("(pointer: coarse)").matches) {
+  el.hint.textContent = "Press and hold the keys.";
+}
+
 renderScene();
 
-// Play it once for visitors who haven't touched anything yet, so the first viewport shows the mechanism.
-if (!reduceMotion) {
-  setTimeout(() => {
-    if (touched) return;
+// Play it once, when the rig is on screen, for visitors who haven't touched anything yet.
+function autoplay() {
+  if (touched) return;
+  if (reduceMotion) {
     press();
-    setTimeout(() => {
-      if (!touched) release();
-    }, 150 * scene.spoken.split(" ").length + 700);
-  }, 1400);
-} else {
+    release();
+    return;
+  }
+  onAllSpoken = () => {
+    if (!touched) release();
+  };
   press();
-  release();
+}
+if ("IntersectionObserver" in window) {
+  const io = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        io.disconnect();
+        setTimeout(autoplay, reduceMotion ? 0 : 900);
+      }
+    },
+    { threshold: 0.6 },
+  );
+  io.observe(el.screen);
+} else {
+  setTimeout(autoplay, 1400);
 }
 
 // ---------------------------------------------------------------- tones
@@ -255,7 +299,7 @@ if (!reduceMotion) {
 const TONES = {
   messages: { name: "supercasual · Messages", text: "hey Jordan thanks for the deck can we move the review to thursday?", mono: false },
   mail: { name: "professional · Mail", text: "Hey Jordan, thanks for the deck. Can we move the review to Thursday?", mono: false },
-  notes: { name: "casual · Notes", text: "hey Jordan, thanks for the deck. can we move the review to thursday?", mono: false },
+  notes: { name: "casual · Notes (your setting)", text: "hey Jordan, thanks for the deck. can we move the review to thursday?", mono: false },
   terminal: { name: "verbatim · Terminal", text: "hey jordan um thanks for the deck can we move the review to thursday", mono: true },
 };
 const toneKeys = [...document.querySelectorAll("[data-tone]")];
@@ -269,7 +313,7 @@ function setTone(id) {
   for (const k of toneKeys) {
     const on = k.dataset.tone === id;
     k.classList.toggle("is-on", on);
-    k.setAttribute("aria-selected", String(on));
+    k.setAttribute("aria-pressed", String(on));
   }
 }
 for (const k of toneKeys) k.addEventListener("click", () => setTone(k.dataset.tone));
@@ -293,7 +337,7 @@ for (const k of shotKeys) {
     shot.alt = s.alt;
     for (const o of shotKeys) {
       o.classList.toggle("is-on", o === k);
-      o.setAttribute("aria-selected", String(o === k));
+      o.setAttribute("aria-pressed", String(o === k));
     }
   });
 }

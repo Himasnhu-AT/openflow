@@ -43,6 +43,10 @@ body {
   font-variation-settings: "wdth" 100;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 img {
   display: block;
   max-width: 100%;
@@ -226,6 +230,12 @@ kbd {
 
 .key:hover .cap {
   filter: brightness(1.04);
+}
+/* Pre-travel: a key gives a little under a resting finger. */
+@media (hover: hover) {
+  .key:not(.key--sheet):not(.key--row):not(.key--cap-fact):not(.key--blank):not(.is-on):hover {
+    transform: translateY(1px);
+  }
 }
 
 .key:active,
@@ -423,19 +433,23 @@ kbd {
 }
 .nav__links {
   display: flex;
-  gap: 28px;
+  gap: 10px;
   margin: 0 0 0 auto;
   padding: 0;
   list-style: none;
-  font-size: 0.95rem;
-  font-weight: 550;
 }
-.nav__links a {
-  text-decoration: none;
-  color: var(--on-plate-soft);
+/* Function-row keys: F-number legend top-left, name below. */
+.key--fn .cap {
+  gap: 2px;
+  padding: 6px 12px 8px;
+  font-size: 0.82rem;
+  min-width: 6.5rem;
 }
-.nav__links a:hover {
-  color: var(--on-plate);
+.key--fn .fn {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--on-mod-soft);
+  letter-spacing: 0.06em;
 }
 
 /* ------------------------------------------------------------------ hero */
@@ -552,7 +566,7 @@ kbd {
   white-space: pre-wrap;
 }
 .field__placeholder {
-  color: #9aa1b1;
+  color: #6b7280;
 }
 .field__live {
   color: #6b7285;
@@ -648,6 +662,8 @@ kbd {
   margin-top: 72px;
 }
 .key--giant {
+  touch-action: none;
+  -webkit-touch-callout: none;
   --depth: 11px;
   --drop: rgba(8, 18, 80, 0.42);
   width: clamp(120px, 12vw, 164px);
@@ -815,32 +831,6 @@ kbd {
 
 /* ------------------------------------------------------------------ meetings + gallery */
 
-.facts {
-  margin: 0 0 36px;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 10px;
-}
-.facts li {
-  position: relative;
-  padding-left: 26px;
-  color: var(--on-plate);
-}
-.facts li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.5em;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: var(--cap-alpha);
-  box-shadow: 0 3px 0 var(--cap-alpha-side);
-}
-.facts--mod li {
-  color: var(--cap-alpha);
-}
 
 .window {
   margin: 0;
@@ -905,25 +895,7 @@ kbd {
   color: var(--cap-alpha);
 }
 
-/* ------------------------------------------------------------------ needs */
 
-.needs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 28px;
-  margin: 12px 0 0;
-}
-.needs dt {
-  font-weight: 800;
-  font-size: 1.05rem;
-  margin-bottom: 6px;
-  font-variation-settings: "wdth" 104;
-}
-.needs dd {
-  margin: 0;
-  color: var(--legend-ink-soft);
-  font-size: 0.98rem;
-}
 
 /* ------------------------------------------------------------------ close + footer */
 
@@ -986,9 +958,6 @@ kbd {
   .nav .key--small {
     margin-left: auto;
   }
-  .needs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 560px) {
@@ -1004,10 +973,7 @@ kbd {
   body {
     font-size: 1.05rem;
   }
-  .key--sheet,
-  .key--sheet.w15,
-  .key--sheet.w2 {
-    width: 100%;
+  .key--sheet {
     min-height: 0;
   }
   .sheet,
@@ -1016,9 +982,6 @@ kbd {
   }
   .key--return {
     min-width: 100%;
-  }
-  .needs {
-    grid-template-columns: 1fr;
   }
   .rig__keys {
     gap: 14px;
@@ -1038,5 +1001,88 @@ kbd {
   .field--swap,
   .pill.is-processing .pill__bars i {
     animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ fact caps, wells, tag, colorway */
+
+.caps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 36px;
+  padding: 0;
+  list-style: none;
+}
+.key--cap-fact {
+  cursor: default;
+  flex: 1 1 11rem;
+}
+.key--cap-fact .legend {
+  font-weight: 750;
+  font-variation-settings: "wdth" 100;
+}
+
+.key--tag {
+  cursor: default;
+  margin-bottom: 18px;
+}
+.key--tag .cap {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+/* Screenshots sit in a recessed well cut into the plate. */
+.well {
+  padding: clamp(10px, 1.6vw, 18px);
+  border-radius: 24px;
+  background: var(--plate-cobalt-deep);
+  box-shadow:
+    inset 0 4px 14px rgba(4, 10, 50, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.well figcaption {
+  margin: 12px 4px 2px;
+}
+.well--light {
+  background: #d9dce5;
+  box-shadow:
+    inset 0 4px 12px rgba(16, 19, 26, 0.16),
+    0 1px 0 #fff;
+}
+.gallery .window img {
+  max-height: 78vh;
+  width: 100%;
+  object-fit: cover;
+  object-position: top left;
+}
+
+.colorway {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.colorway i {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--c);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+.colorway span {
+  margin-left: 6px;
+}
+
+.row .sublegend code {
+  font-size: 0.95em;
+}
+
+@media (max-width: 560px) {
+  .key--sheet,
+  .key--sheet.w15 {
+    width: calc(50% - 6px);
+  }
+  .key--sheet.w2 {
+    width: 100%;
   }
 }

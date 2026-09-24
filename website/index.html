@@ -11,7 +11,7 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OpenFlow — hold ⌘; and talk. Private dictation for your Mac.</title>
-  <meta name="description" content="OpenFlow turns what you say into clean text wherever your cursor is. Speech recognition and cleanup run on your Mac. Meeting notes without a bot. Free and open source." />
+  <meta name="description" content="OpenFlow turns what you say into clean text wherever your cursor is. Speech recognition and cleanup run on your Mac. Meeting notes without a bot. Open source." />
   <meta name="theme-color" content="#1d3fd6" />
   <meta property="og:title" content="OpenFlow — hold ⌘; and talk" />
   <meta property="og:description" content="Private, local-first dictation and meeting notes for the Mac. Open source." />
@@ -32,10 +32,10 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
         <span class="brand__word">OpenFlow</span>
       </a>
       <ul class="nav__links">
-        <li><a href="#fixes">What it fixes</a></li>
-        <li><a href="#private">Private</a></li>
-        <li><a href="#meetings">Meetings</a></li>
-        <li><a href="#open">Open source</a></li>
+        <li><a class="key key--mod key--small key--fn" href="#fixes"><span class="cap"><span class="fn">F1</span>What it fixes</span></a></li>
+        <li><a class="key key--mod key--small key--fn" href="#private"><span class="cap"><span class="fn">F2</span>Private</span></a></li>
+        <li><a class="key key--mod key--small key--fn" href="#meetings"><span class="cap"><span class="fn">F3</span>Meetings</span></a></li>
+        <li><a class="key key--mod key--small key--fn" href="#open"><span class="cap"><span class="fn">F4</span>Open source</span></a></li>
       </ul>
       <a class="key key--accent key--small" data-link="download" href="https://github.com/REPLACE-ME/openflow/releases/latest">
         <span class="cap">Download</span>
@@ -50,7 +50,7 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
           <a class="key key--accent key--return" data-link="download" href="https://github.com/REPLACE-ME/openflow/releases/latest">
             <span class="cap">
               <span class="legend legend--big">Download for Mac</span>
-              <span class="sublegend">macOS 15+ · Apple Silicon · free</span>
+              <span class="sublegend">macOS 15+ · Apple Silicon · open source</span>
             </span>
           </a>
           <a class="key key--mod" data-link="source" href="https://github.com/REPLACE-ME/openflow">
@@ -129,17 +129,17 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
         </div>
         <div class="tones">
           <p class="tones__said"><span class="tones__label">You said</span>“hey jordan um thanks for the deck can we move the review to thursday”</p>
-          <div class="tones__keys" role="tablist" aria-label="App">
-            <button class="key key--alpha key--small is-on" role="tab" aria-selected="true" data-tone="messages" type="button"><span class="cap">Messages</span></button>
-            <button class="key key--alpha key--small" role="tab" aria-selected="false" data-tone="mail" type="button"><span class="cap">Mail</span></button>
-            <button class="key key--alpha key--small" role="tab" aria-selected="false" data-tone="notes" type="button"><span class="cap">Notes</span></button>
-            <button class="key key--alpha key--small" role="tab" aria-selected="false" data-tone="terminal" type="button"><span class="cap">Terminal</span></button>
+          <div class="tones__keys" role="group" aria-label="App">
+            <button class="key key--alpha key--small is-on" aria-pressed="true" data-tone="messages" type="button"><span class="cap">Messages</span></button>
+            <button class="key key--alpha key--small" aria-pressed="false" data-tone="mail" type="button"><span class="cap">Mail</span></button>
+            <button class="key key--alpha key--small" aria-pressed="false" data-tone="notes" type="button"><span class="cap">Notes, set to casual</span></button>
+            <button class="key key--alpha key--small" aria-pressed="false" data-tone="terminal" type="button"><span class="cap">Terminal</span></button>
           </div>
-          <div class="tones__out" role="tabpanel" aria-live="polite">
+          <div class="tones__out" aria-live="polite">
             <span class="tones__label" id="tone-name">supercasual</span>
             <p id="tone-text">hey Jordan thanks for the deck can we move the review to thursday?</p>
           </div>
-          <p class="note note--plate">Illustrative output for the default tones.</p>
+          <p class="note note--plate">Illustrative output. Messages, Mail and Terminal use their default tones; casual is a tone you can give any app.</p>
         </div>
       </div>
     </section>
@@ -150,7 +150,7 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
         <p class="body">Speech recognition and cleanup run on your Mac. No account, no audio uploaded, and it keeps working on a plane. Cloud models are opt-in, use your own key, and fall back to local if anything fails.</p>
         <ol class="row" aria-label="What happens when you release the keys">
           <li class="key key--mod key--row w15"><span class="cap"><span class="legend">Mic</span><span class="sublegend">16 kHz, on-device</span></span></li>
-          <li class="key key--alpha key--row w2"><span class="cap"><span class="legend">Parakeet</span><span class="sublegend">speech → text · ~70 ms per 4 s clip</span></span></li>
+          <li class="key key--alpha key--row w2"><span class="cap"><span class="legend">Parakeet</span><span class="sublegend">speech → text · ~70 ms per 3.8 s clip</span></span></li>
           <li class="key key--alpha key--row w2"><span class="cap"><span class="legend">Rules</span><span class="sublegend">fillers, commands · 0.6 ms</span></span></li>
           <li class="key key--alpha key--row w2"><span class="cap"><span class="legend">Qwen3.5</span><span class="sublegend">tone and grammar · llama.cpp</span></span></li>
           <li class="key key--accent key--row w15"><span class="cap"><span class="legend">⌘V</span><span class="sublegend">pasted at your cursor</span></span></li>
@@ -163,15 +163,16 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
     <section class="plate plate--cobalt" id="meetings" aria-labelledby="meetings-h">
       <div class="wrap split split--wide">
         <div>
+          <span class="key key--mod key--tiny key--tag"><span class="cap">Beta</span></span>
           <h2 class="headline" id="meetings-h">Meeting notes, no bot in the call.</h2>
           <p class="body body--plate">When Zoom, Meet, Teams or FaceTime starts using your mic, OpenFlow offers to take notes. It never starts on its own. You and the other side are transcribed separately, and when the call ends you get a summary, the decisions, the action items and your own to-dos.</p>
-          <ul class="facts">
-            <li>Audio is never stored. Only the transcript is kept.</li>
-            <li>50+ languages on the far side, auto-detected.</li>
-            <li>Search every meeting. Export as Markdown.</li>
+          <ul class="caps">
+            <li class="key key--alpha key--cap-fact"><span class="cap"><span class="legend">No audio kept</span><span class="sublegend">only the transcript</span></span></li>
+            <li class="key key--alpha key--cap-fact"><span class="cap"><span class="legend">50+ languages</span><span class="sublegend">other side, auto-detected</span></span></li>
+            <li class="key key--alpha key--cap-fact"><span class="cap"><span class="legend">Search · Markdown</span><span class="sublegend">every meeting, exportable</span></span></li>
           </ul>
         </div>
-        <figure class="window">
+        <figure class="window well">
           <img src="assets/app-meetings.jpg" width="1600" height="926" loading="lazy" alt="OpenFlow's Meetings page showing notes for a sample call: summary, decisions, action items and a to-do checklist." />
           <figcaption>The real app, with a sample meeting.</figcaption>
         </figure>
@@ -183,12 +184,12 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
         <h2 class="headline" id="yours-h">It learns how you write.</h2>
         <p class="body">Add names and jargon to your dictionary and they get boosted inside the speech model itself. Tell it who you are once. When you fix a dictation, that correction becomes an example of your style.</p>
         <div class="gallery">
-          <div class="gallery__keys" role="tablist" aria-label="App screens">
-            <button class="key key--mod key--small is-on" role="tab" aria-selected="true" data-shot="home" type="button"><span class="cap">History</span></button>
-            <button class="key key--mod key--small" role="tab" aria-selected="false" data-shot="style" type="button"><span class="cap">Tones</span></button>
-            <button class="key key--mod key--small" role="tab" aria-selected="false" data-shot="insights" type="button"><span class="cap">Insights</span></button>
+          <div class="gallery__keys" role="group" aria-label="App screens">
+            <button class="key key--mod key--small is-on" aria-pressed="true" data-shot="home" type="button"><span class="cap">History</span></button>
+            <button class="key key--mod key--small" aria-pressed="false" data-shot="style" type="button"><span class="cap">Tones</span></button>
+            <button class="key key--mod key--small" aria-pressed="false" data-shot="insights" type="button"><span class="cap">Insights</span></button>
           </div>
-          <figure class="window window--light">
+          <figure class="window window--light well well--light">
             <img id="shot" src="assets/app-home.jpg" width="1540" height="1250" loading="lazy" alt="OpenFlow's history of recent dictations, each with the app and tone it was written in." />
             <figcaption>The real app, with sample data.</figcaption>
           </figure>
@@ -201,10 +202,10 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
         <div>
           <h2 class="headline" id="open-h">Open source. Measured on your own voice.</h2>
           <p class="body body--mod">Every rule, prompt and model is in the repo, and you can swap any of them. Before and after a change, <code>--eval</code> replays the dictations you corrected and reports word error rate, so you know whether the change helped.</p>
-          <ul class="facts facts--mod">
-            <li>BSD 3-Clause.</li>
-            <li>Rust, React and Tauri, with a small Swift helper for Apple's speech hardware.</li>
-            <li>110 rule self-tests pass before every build.</li>
+          <ul class="caps">
+            <li class="key key--alpha key--cap-fact"><span class="cap"><span class="legend">BSD 3-Clause</span><span class="sublegend">use it, fork it, ship it</span></span></li>
+            <li class="key key--alpha key--cap-fact"><span class="cap"><span class="legend">Rust · React · Tauri</span><span class="sublegend">plus a small Swift speech helper</span></span></li>
+            <li class="key key--alpha key--cap-fact"><span class="cap"><span class="legend">110 self-tests</span><span class="sublegend">no models needed</span></span></li>
           </ul>
           <a class="key key--alpha" data-link="source" href="https://github.com/REPLACE-ME/openflow"><span class="cap"><span class="legend">Read the source</span><span class="sublegend">GitHub</span></span></a>
         </div>
@@ -225,12 +226,12 @@ selftest: 110 passed, 0 failed
     <section class="plate plate--alpha plate--tight" id="needs" aria-labelledby="needs-h">
       <div class="wrap">
         <h2 class="headline headline--small" id="needs-h">What you need</h2>
-        <dl class="needs">
-          <div><dt>A Mac</dt><dd>macOS 15 or later, Apple Silicon.</dd></div>
-          <div><dt>llama.cpp</dt><dd><code>brew install llama.cpp</code> for cleanup. Without it, text is pasted verbatim.</dd></div>
-          <div><dt>Models</dt><dd>Downloaded once from inside the app: speech about 600 MB, cleanup 1.3–5.7 GB depending on size.</dd></div>
-          <div><dt>Windows and Linux</dt><dd>In progress. The platform layer is built for them, and they aren't released yet.</dd></div>
-        </dl>
+        <ul class="row" aria-label="Requirements">
+          <li class="key key--alpha key--row"><span class="cap"><span class="legend">A Mac</span><span class="sublegend">macOS 15 or later, Apple Silicon</span></span></li>
+          <li class="key key--alpha key--row"><span class="cap"><span class="legend">llama.cpp</span><span class="sublegend"><code>brew install llama.cpp</code> for cleanup; without it, text is pasted verbatim</span></span></li>
+          <li class="key key--alpha key--row"><span class="cap"><span class="legend">Models</span><span class="sublegend">downloaded once in the app: speech ~600 MB, cleanup 1.3–5.7 GB</span></span></li>
+          <li class="key key--blank key--row"><span class="cap"><span class="legend">Windows · Linux</span><span class="sublegend">in progress, not released yet</span></span></li>
+        </ul>
       </div>
     </section>
 
@@ -250,6 +251,10 @@ selftest: 110 passed, 0 failed
   <footer class="footer">
     <div class="wrap footer__row">
       <span class="brand__word brand__word--small">OpenFlow</span>
+      <span class="colorway" aria-label="Colorway: cobalt plate, PBT alpha, charcoal modifier, lime accent">
+        <i style="--c: var(--plate-cobalt)"></i><i style="--c: var(--cap-alpha)"></i><i style="--c: var(--cap-mod)"></i><i style="--c: var(--cap-accent)"></i>
+        <span>Colorway: Cobalt / Lime · PBT</span>
+      </span>
       <span>Open source under BSD 3-Clause.</span>
       <a data-link="source" href="https://github.com/REPLACE-ME/openflow">Source</a>
       <a href="#private">Privacy: everything runs on your Mac</a>

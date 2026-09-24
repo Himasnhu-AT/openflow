@@ -136,8 +136,8 @@ This is a committed colorway: a saturated cobalt plate owns 40–60% of the page
 
 - Sections are plates: full-bleed cobalt or alpha fields with generous vertical space (spacing.section).
 - Content sits on a 12-column grid, max 1200px.
-- Key grids use a 1u unit of 64–88px depending on the viewport. Key widths are multiples of the unit (1u, 1.25u, 1.5u, 2.25u, 6.25u), as on a real keyboard.
-- On mobile the key grids stay unit-based and wrap by whole keys; a key is never squashed.
+- Key grids use a 1u unit of 64–84px depending on the viewport (56px on phones). Legend-sheet keys come in three widths (2.3u, 2.9u, 3.6u) and grow to fill their row, so rows end flush like a real keyboard. Pipeline and requirement rows use an auto-fit grid with a 170px minimum.
+- On phones the legend sheet goes 2-up, with the widest keys taking a full row. Keys are never squashed below their legend.
 
 ## Elevation & Depth
 
@@ -155,11 +155,20 @@ Keys are rounded rectangles (12px small, 14px standard, 22px giant) with a soft 
 
 ### Keys (signature)
 - **Alpha, Mod, Accent** variants share one structure: skirt, top face, legend and optional front sub-legend.
-- **States:** rest; hover (top face lightens 3%); pressed or held (sinks by its depth onto the skirt); focus-visible (2px lime ring offset outside the skirt on mods and alphas, ink ring on accent keys); disabled (no skirt, 50% legend).
+- **States:** rest; hover (top face lightens 3%); pressed or held (sinks by its depth onto the skirt); focus-visible (3px lime ring, offset 4px, on mods and alphas; ink ring on accent keys); hover pre-travel of 1px; disabled (no skirt, 50% legend).
 
 ### Buttons
 - **Return (primary):** a lime ISO-Return key labelled "Download for Mac", with a "macOS 15+ · Apple Silicon" sub-legend.
 - **Mod (secondary):** a charcoal key, e.g. "View source".
+
+### Function-row keys (navigation)
+Small charcoal keys with an F-number legend above the section name (F1 What it fixes … F4 Open source).
+
+### Fact caps and rows
+Facts are alpha keys with a bold legend and a front sub-legend, never bullet lists. A plain `ul` of facts is off-system.
+
+### Plate wells
+Screenshots sit in a recessed well cut into the plate: deep cobalt on cobalt plates, and #d9dce5 on light plates, with an inset shadow.
 
 ### Demo screen
 A PBT-alpha surface framed as a Mac text field (Messages, Mail, Terminal). It shows live words arriving as you hold the keys, then the polished text replacing them. It is always labelled as a simulation.
