@@ -178,7 +178,7 @@ pub fn chunk_system(memory: &str) -> String {
             prefix_chars(memory, 400)
         )
     };
-    format!("You take notes for the person whose lines are labelled \"You\"; \"Them\" is everyone else on the call.{who} Below is part of a meeting transcript.\n") + NOTES_FORMAT
+    format!("You take notes for the person whose lines are labelled \"You\"; every other line (\"Them\" or a name) is someone else on the call.{who} Below is part of a meeting transcript.\n") + NOTES_FORMAT
 }
 
 /// `summarizeMeeting` merge system prompt.

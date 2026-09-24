@@ -48,6 +48,10 @@ pub trait AsrEngine: Send + Sync {
     async fn set_vocabulary(&self, terms: &[String]) -> Result<()>;
     /// Multilingual fallback for meetings (SenseVoice). Loads lazily.
     async fn transcribe_multilingual(&self, samples: &[f32]) -> Result<String>;
+    /// Voice-activity probabilities (Silero, 256 ms chunks). None: no VAD on this platform.
+    async fn speech_probabilities(&self, _samples: &[f32]) -> Result<Option<Vec<f32>>> {
+        Ok(None)
+    }
 }
 
 // ---------------------------------------------------------------------------------------------- platform

@@ -1,5 +1,6 @@
 //! OpenFlow Tauri app: windows, tray, commands and the orchestrator that runs dictation and meetings.
 
+mod bridge;
 pub mod cli;
 mod commands;
 mod logging;

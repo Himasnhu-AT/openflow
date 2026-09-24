@@ -16,6 +16,9 @@ use crate::cloud::{Cloud, Scope};
 use crate::prompts::trim_ws_nl;
 use crate::whisper_server::WhisperServer;
 
+/// Silero speech probability that counts as a voice (Meeting-Assistant's gate uses 0.5).
+pub const VAD_THRESHOLD: f32 = 0.5;
+
 /// 300 ms of silence appended so the last word isn't clipped.
 pub const TAIL_SAMPLES: usize = 4800;
 
@@ -65,10 +68,60 @@ impl MeetingEngine {
         Ok(())
     }
 
+    /// Stops the whisper-server this meeting started. Call after the last utterance was transcribed.
+    pub fn shutdown(&self) {
+        if let Some(w) = &self.whisper {
+            w.stop();
+        }
+    }
+
+    /// Whisper when it is (or is about to be) up: waits out its start-up instead of sending the first minute of
+    /// the far side to Parakeet, and restarts a crashed server once before giving up on this utterance.
+    async fn whisper_transcribe(&self, audio: &[f32]) -> Option<(String, String)> {
+        let w = self.whisper.as_ref()?;
+        if !w.wait_ready().await {
+            return None;
+        }
+        match w.transcribe(audio).await {
+            Ok(r) => Some(r),
+            Err(e) => {
+                tracing::error!(target: "meeting", "whisper-server failed: {e:#}");
+                if w.recover().await {
+                    w.transcribe(audio).await.ok()
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    /// Silero gate: false only when the VAD ran and heard no voice anywhere in the utterance. Any VAD failure keeps
+    /// the audio (fail open): a missing model must never cost speech.
+    async fn has_voice(&self, samples: &[f32]) -> bool {
+        match self.asr.speech_probabilities(samples).await {
+            Ok(Some(p)) if !p.is_empty() => {
+                let voiced = p.iter().any(|p| *p >= VAD_THRESHOLD);
+                if !voiced {
+                    let max = p.iter().fold(0f32, |m, x| m.max(*x));
+                    tracing::debug!(target: "meeting", "VAD: no voice in {:.1} s (max {max:.2}); skipped", samples.len() as f64 / 16_000.0);
+                }
+                voiced
+            }
+            Ok(_) => true,
+            Err(e) => {
+                tracing::warn!(target: "meeting", "VAD unavailable, transcribing anyway: {e:#}");
+                true
+            }
+        }
+    }
+
     /// Returns the text and whether it is English.
     pub async fn transcribe(&self, samples: &[f32], speaker: &str) -> Result<(String, bool)> {
         // Too quiet to be a voice on the line: the segmenter saw energy, but not enough to trust.
         if speaker == "Them" && rms(samples) < 0.004 {
+            return Ok((String::new(), true));
+        }
+        if !self.has_voice(samples).await {
             return Ok((String::new(), true));
         }
         let mut audio = normalised(samples);
@@ -84,14 +137,9 @@ impl MeetingEngine {
             }
         }
         if speaker == "Them" {
-            if let Some(w) = &self.whisper {
-                match w.transcribe(&audio).await {
-                    Ok((text, lang)) => {
-                        let english = if lang.is_empty() { !is_non_latin(&text) } else { lang.starts_with("en") };
-                        return Ok((text, english));
-                    }
-                    Err(e) => tracing::error!(target: "meeting", "whisper-server failed, using Parakeet: {e}"),
-                }
+            if let Some((text, lang)) = self.whisper_transcribe(&audio).await {
+                let english = if lang.is_empty() { !is_non_latin(&text) } else { lang.starts_with("en") };
+                return Ok((text, english));
             }
         }
         let english = self.asr.transcribe(&audio, true).await?;
@@ -102,8 +150,8 @@ impl MeetingEngine {
         if seconds < 1.5 || looks_english(&english) {
             return Ok((english, true));
         }
-        if let Some(w) = &self.whisper {
-            if let Ok((text, lang)) = w.transcribe(&audio).await {
+        if self.whisper.is_some() {
+            if let Some((text, lang)) = self.whisper_transcribe(&audio).await {
                 let is_en = lang.starts_with("en") || (lang.is_empty() && !is_non_latin(&text));
                 return Ok(if is_en { (english, true) } else { (text, false) });
             }
@@ -127,6 +175,8 @@ mod tests {
         english: String,
         multi: String,
         seen: Mutex<Vec<(usize, bool, &'static str)>>,
+        /// Peak VAD probability to report; None = the VAD fails.
+        vad: Mutex<Option<f32>>,
     }
 
     #[async_trait]
@@ -148,10 +198,16 @@ mod tests {
             self.seen.lock().unwrap().push((s.len(), false, "sense"));
             Ok(self.multi.clone())
         }
+        async fn speech_probabilities(&self, _: &[f32]) -> Result<Option<Vec<f32>>> {
+            match *self.vad.lock().unwrap() {
+                Some(v) => Ok(Some(vec![0.1, v, 0.2])),
+                None => Err(anyhow::anyhow!("no model")),
+            }
+        }
     }
 
     fn engine(english: &str, multi: &str, meeting_engine: &str) -> (MeetingEngine, Arc<FakeAsr>) {
-        let asr = Arc::new(FakeAsr { english: english.into(), multi: multi.into(), seen: Mutex::new(vec![]) });
+        let asr = Arc::new(FakeAsr { english: english.into(), multi: multi.into(), seen: Mutex::new(vec![]), vad: Mutex::new(Some(0.9)) });
         let cfg = Config { meeting_engine: meeting_engine.into(), cloud_enabled: false, ..Config::default() };
         (MeetingEngine::new(asr.clone(), cfg, None), asr)
     }
@@ -192,6 +248,16 @@ mod tests {
         let r = e.transcribe(&vec![0.1; 48000], "You").await.unwrap();
         assert_eq!(r, ("bonjour tout le monde".into(), true));
         assert_eq!(asr.seen.lock().unwrap()[0], (48000 + TAIL_SAMPLES, true, "parakeet"));
+    }
+
+    #[tokio::test]
+    async fn vad_gate_skips_voiceless_audio_and_fails_open() {
+        let (e, asr) = engine("hello there", "", "auto");
+        *asr.vad.lock().unwrap() = Some(0.3);
+        assert_eq!(e.transcribe(&vec![0.1; 16000], "You").await.unwrap(), (String::new(), true));
+        assert!(asr.seen.lock().unwrap().is_empty());
+        *asr.vad.lock().unwrap() = None; // VAD broken: transcribe anyway
+        assert_eq!(e.transcribe(&vec![0.1; 16000], "You").await.unwrap(), ("hello there".into(), true));
     }
 
     #[tokio::test]
