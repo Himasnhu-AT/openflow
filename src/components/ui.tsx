@@ -149,6 +149,19 @@ export function Picker({
   );
 }
 
+/** Segmented control (NSSegmentedControl): one of a few options, all visible. */
+export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <div className="segmented" role="radiogroup">
+      {options.map(([v, label]) => (
+        <button key={v} role="radio" aria-checked={v === value} className={"segment" + (v === value ? " on" : "")} onClick={() => onChange(v)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Text input with local state that forwards every change (callers debounce the save). */
 export function TextField({
   value,

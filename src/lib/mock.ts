@@ -187,6 +187,11 @@ const ollama: OllamaStatus = {
   ],
   error: null,
 };
+// `?ollama=stopped` / `?ollama=missing` preview the other status rows.
+const ollamaParam = new URLSearchParams(location.search).get("ollama");
+if (ollamaParam === "stopped" || ollamaParam === "missing") {
+  Object.assign(ollama, { running: false, version: null, models: [], installed: ollamaParam === "stopped" });
+}
 
 const OLLAMA_DEFAULTS: Pick<Config, "llmBackend" | "ollamaUrl" | "ollamaModel" | "ollamaNotesModel" | "ollamaPath"> = {
   llmBackend: "ollama",
@@ -241,7 +246,7 @@ const state: Snapshot = {
   whisperServerFound: false,
   whisperModelInstalled: false,
   ollamaCatalog,
-  activeBackend: "ollama",
+  activeBackend: ollama.running ? "ollama" : "llamacpp",
   dataDir: "/Users/you/Library/Application Support/OpenFlow",
 };
 
@@ -410,6 +415,8 @@ const handlers: Record<string, Handler> = {
   snapshot: () => state,
   set_config: ({ config }) => {
     state.config = config;
+    // Ollama falls back to llama.cpp when it isn't running, like the Rust side.
+    state.activeBackend = config.llmBackend === "llamacpp" || !ollama.running ? "llamacpp" : "ollama";
     pushSnapshot();
   },
   delete_dictation: ({ id }) => {
@@ -491,6 +498,8 @@ const handlers: Record<string, Handler> = {
     if (!ollama.installed) throw new Error("Ollama is not installed");
     ollama.running = true;
     ollama.version = "0.34.1";
+    if (state.config.llmBackend !== "llamacpp") state.activeBackend = "ollama";
+    pushSnapshot();
   },
   ollama_pull: ({ model }) => ollamaPull(model),
   ollama_cancel_pull: ({ model }) => {
