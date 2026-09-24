@@ -11,6 +11,8 @@ import type {
   DownloadProgress,
   InputDevice,
   Meeting,
+  OllamaCatalogModel,
+  OllamaStatus,
   OverlayMode,
   OverlayState,
   Snapshot,
@@ -167,6 +169,33 @@ const whisperCatalog: CatalogModel = {
   note: "Far side of calls: any language, best on compressed call audio. Needs `brew install whisper-cpp`.",
 };
 
+const ollamaCatalog: OllamaCatalogModel[] = [
+  { name: "qwen3.5:2b", label: "Qwen3.5 2B", gb: 2.7, note: "Fastest" },
+  { name: "qwen3.5:4b", label: "Qwen3.5 4B", gb: 3.4, note: "Default. Best balance of speed and quality" },
+  { name: "qwen3.5:9b", label: "Qwen3.5 9B", gb: 6.6, note: "Most accurate; good for meeting notes" },
+];
+
+const GB = 1e9;
+const ollama: OllamaStatus = {
+  installed: true,
+  running: true,
+  version: "0.34.1",
+  url: "http://127.0.0.1:11434",
+  models: [
+    { name: "qwen3.5:4b", size: 3.4 * GB },
+    { name: "llama3.2:3b", size: 2.0 * GB },
+  ],
+  error: null,
+};
+
+const OLLAMA_DEFAULTS: Pick<Config, "llmBackend" | "ollamaUrl" | "ollamaModel" | "ollamaNotesModel" | "ollamaPath"> = {
+  llmBackend: "ollama",
+  ollamaUrl: "http://127.0.0.1:11434",
+  ollamaModel: "qwen3.5:4b",
+  ollamaNotesModel: "qwen3.5:9b",
+  ollamaPath: "",
+};
+
 const today = new Date();
 const dayKey = (offset: number) => {
   const d = new Date(today.getTime() - offset * DAY * 1000);
@@ -174,7 +203,11 @@ const dayKey = (offset: number) => {
 };
 
 const state: Snapshot = {
-  config: { ...(starter as unknown as Config), dictionary: ["OpenFlow: open flow, open flo", ...starter.dictionary, "Priya", "Maya"] },
+  config: {
+    // Defaults for fields newer than starter-config.json (starter wins when it has them).
+    ...OLLAMA_DEFAULTS,
+    ...(starter as unknown as Config),
+    dictionary: ["OpenFlow: open flow, open flo", ...starter.dictionary, "Priya", "Maya"] },
   history,
   stats: {
     words: 12843,
@@ -207,6 +240,8 @@ const state: Snapshot = {
   whisperCatalog,
   whisperServerFound: false,
   whisperModelInstalled: false,
+  ollamaCatalog,
+  activeBackend: "ollama",
   dataDir: "/Users/you/Library/Application Support/OpenFlow",
 };
 
@@ -336,6 +371,26 @@ function download(file: string) {
   emit("download", { file, progress: 0, done: false, error: null } satisfies DownloadProgress);
 }
 
+// Ollama pulls report on the same `download` event, with `file` = the model tag.
+function ollamaPull(model: string) {
+  if (downloads.has(model)) return;
+  let p = 0;
+  const timer = window.setInterval(() => {
+    p = Math.min(1, p + 0.03 + Math.random() * 0.04);
+    const done = p >= 1;
+    if (done) {
+      clearInterval(timer);
+      downloads.delete(model);
+      const gb = ollamaCatalog.find((m) => m.name === model)?.gb ?? 4;
+      if (!ollama.models.some((m) => m.name === model)) ollama.models = [...ollama.models, { name: model, size: gb * GB }];
+      pushSnapshot();
+    }
+    emit("download", { file: model, progress: done ? 1 : p, done, error: null } satisfies DownloadProgress);
+  }, 250);
+  downloads.set(model, timer);
+  emit("download", { file: model, progress: null, done: false, error: null } satisfies DownloadProgress);
+}
+
 // ------------------------------------------------------------------------------------------------ commands
 
 let launchAtLogin = false;
@@ -431,6 +486,17 @@ const handlers: Record<string, Handler> = {
   },
   overlay_state: () => overlay,
   initial_page: () => null,
+  ollama_status: () => ({ ...ollama, url: state.config.ollamaUrl || ollama.url }),
+  ollama_start: () => {
+    if (!ollama.installed) throw new Error("Ollama is not installed");
+    ollama.running = true;
+    ollama.version = "0.34.1";
+  },
+  ollama_pull: ({ model }) => ollamaPull(model),
+  ollama_cancel_pull: ({ model }) => {
+    clearInterval(downloads.get(model));
+    downloads.delete(model);
+  },
 };
 
 export async function mockInvoke(cmd: string, args: Record<string, unknown>): Promise<unknown> {
