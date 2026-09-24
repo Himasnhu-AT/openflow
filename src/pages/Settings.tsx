@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, type Config, type InputDevice } from "../lib/api";
+import { useOllamaStatus } from "../lib/ollama";
 import { useStore } from "../lib/store";
 import { CardList, PageHeader, Picker, RowCard, SecondaryButton, SectionLabel, Switch, TextField } from "../components/ui";
 
@@ -29,6 +30,8 @@ export function SettingsPage() {
   const c = snap.config;
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
   const [devices, setDevices] = useState<InputDevice[]>([]);
+  const { status: ollama } = useOllamaStatus();
+  const onOllama = c.llmBackend !== "llamacpp";
 
   useEffect(() => {
     api.getLaunchAtLogin().then(setLaunchAtLogin).catch(() => {});
@@ -88,9 +91,15 @@ export function SettingsPage() {
               }}
             />
           </SettingRow>
-          <SettingRow key="llama" title="llama-server" subtitle="Path to the Homebrew binary">
-            {text("llamaServerPath")}
-          </SettingRow>
+          {onOllama ? (
+            <SettingRow key="ollama" title="Ollama URL" subtitle="Where the Ollama server listens. Pick the engine on the Models page">
+              {text("ollamaUrl", 260, "text", "http://127.0.0.1:11434")}
+            </SettingRow>
+          ) : (
+            <SettingRow key="llama" title="llama-server" subtitle="Path to the Homebrew binary">
+              {text("llamaServerPath")}
+            </SettingRow>
+          )}
           <SettingRow key="cfg" title="Config folder" subtitle={snap.dataDir}>
             <SecondaryButton title="Open" onClick={() => api.openPath("config")} />
           </SettingRow>
@@ -182,12 +191,21 @@ export function SettingsPage() {
               ["parakeet", "Parakeet"],
             ])}
           </SettingRow>
-          <SettingRow key="notes" title="Notes model" subtitle="A bigger local model loaded only while notes are written">
-            {picker("notesModel", [
-              ["", "Same as polish model"],
-              ...snap.installedModels.filter((f) => f !== c.model).map((f) => [f, f.split(".gguf").join("")] as [string, string]),
-            ])}
-          </SettingRow>
+          {onOllama ? (
+            <SettingRow key="notes" title="Notes model" subtitle="An Ollama model for meeting notes; a bigger one writes better notes">
+              {picker("ollamaNotesModel", [
+                ["", "Same as dictation model"],
+                ...(ollama?.models ?? []).filter((m) => m.name !== c.ollamaModel).map((m) => [m.name, m.name] as [string, string]),
+              ])}
+            </SettingRow>
+          ) : (
+            <SettingRow key="notes" title="Notes model" subtitle="A bigger local model loaded only while notes are written">
+              {picker("notesModel", [
+                ["", "Same as polish model"],
+                ...snap.installedModels.filter((f) => f !== c.model).map((f) => [f, f.split(".gguf").join("")] as [string, string]),
+              ])}
+            </SettingRow>
+          )}
           <SettingRow key="you" title="Your side (you)" subtitle="Parakeet; Whisper or SenseVoice only for longer non-English speech">
             {picker("meetingEngine", [
               ["auto", "Auto (any language)"],
