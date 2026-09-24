@@ -284,12 +284,10 @@ export default function Home() {
                   </>
                 }
               />
-                }
-              />
               <LegendKey
                 size="key--row"
                 legend="Models"
-                sub="downloaded once in the app: speech ~600 MB, cleanup 1.3–5.7 GB"
+                sub="downloaded once in the app: speech ~600 MB, cleanup 2.7–6.6 GB"
               />
               <LegendKey kind="blank" size="key--row" legend="Windows · Linux" sub="in progress, not released yet" />
             </ul>
