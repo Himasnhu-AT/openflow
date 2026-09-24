@@ -57,14 +57,15 @@ const ggufName = (file: string) => file.split(".gguf").join("");
 const tagKey = (name: string) => (name.includes(":") ? name : `${name}:latest`);
 
 /** The line under the engine picker: what actually loaded. */
-function activeEngineLine(snap: Snapshot): { text: string; ok: boolean } {
+function activeEngineLine(snap: Snapshot): { text: string; dot: string } {
   const c = snap.config;
-  if (snap.activeBackend === null) return { text: "No polish engine — pasting verbatim", ok: false };
+  const ready = snap.polishReady ? "var(--green)" : "var(--gray)";
+  if (snap.activeBackend === null) return { text: "No polish engine — pasting verbatim", dot: "var(--gray)" };
   if (snap.activeBackend === "llamacpp") {
-    if (c.llmBackend === "ollama") return { text: "Ollama unavailable — using llama.cpp", ok: false };
-    return { text: `Active: llama.cpp with ${ggufName(c.model)}`, ok: snap.polishReady };
+    if (c.llmBackend === "ollama") return { text: "Ollama unavailable — using llama.cpp", dot: "var(--orange)" };
+    return { text: `Active: llama.cpp with ${ggufName(c.model)}`, dot: ready };
   }
-  return { text: `Active: Ollama with ${c.ollamaModel}`, ok: snap.polishReady };
+  return { text: `Active: Ollama with ${c.ollamaModel}`, dot: ready };
 }
 
 function OllamaStatusRow({ status, error, onStarted }: { status: OllamaStatus | null; error: string | null; onStarted: () => void }) {
@@ -185,7 +186,7 @@ export function ModelsPage() {
               <div className="row-main" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ fontSize: 15 }}>Polish engine</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--secondary)" }}>
-                  <Dot color={engine.ok ? "var(--green)" : "var(--gray)"} size={6} />
+                  <Dot color={engine.dot} size={6} />
                   {engine.text}
                 </span>
               </div>

@@ -196,6 +196,10 @@ export function SettingsPage() {
               {picker("ollamaNotesModel", [
                 ["", "Same as dictation model"],
                 ...(ollama?.models ?? []).filter((m) => m.name !== c.ollamaModel).map((m) => [m.name, m.name] as [string, string]),
+                // The configured model may not be pulled yet (the default 9B, say): say so instead of a bare tag.
+                ...(ollama && c.ollamaNotesModel && !ollama.models.some((m) => m.name === c.ollamaNotesModel)
+                  ? [[c.ollamaNotesModel, `${c.ollamaNotesModel} (not pulled)`] as [string, string]]
+                  : []),
               ])}
             </SettingRow>
           ) : (
