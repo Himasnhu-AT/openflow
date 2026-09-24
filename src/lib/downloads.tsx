@@ -8,6 +8,9 @@ export interface Downloads {
   errors: Record<string, string>;
   start: (file: string, url: string) => void;
   cancel: (file: string) => void;
+  /** `ollama pull <tag>`; progress is keyed by the tag (the event's `file`). */
+  pull: (model: string) => void;
+  cancelPull: (model: string) => void;
 }
 
 const Ctx = createContext<Downloads | null>(null);
@@ -36,34 +39,39 @@ export function DownloadsProvider({ children }: { children: ReactNode }) {
     return () => void un.then((f) => f());
   }, []);
 
-  const value: Downloads = {
-    progress,
-    errors,
-    start: (file, url) => {
-      if (file in progress) return;
-      setProgress((p) => ({ ...p, [file]: 0 }));
-      setErrors((e) => {
-        const next = { ...e };
-        delete next[file];
-        return next;
-      });
-      api.downloadModel(file, url).catch((err) => {
-        setProgress((p) => {
-          const next = { ...p };
-          delete next[file];
-          return next;
-        });
-        setErrors((e) => ({ ...e, [file]: String(err) }));
-      });
-    },
-    cancel: (file) => {
-      api.cancelDownload(file).catch(() => {});
+  const begin = (file: string, run: () => Promise<void>) => {
+    if (file in progress) return;
+    setProgress((p) => ({ ...p, [file]: 0 }));
+    setErrors((e) => {
+      const next = { ...e };
+      delete next[file];
+      return next;
+    });
+    run().catch((err) => {
       setProgress((p) => {
         const next = { ...p };
         delete next[file];
         return next;
       });
-    },
+      setErrors((e) => ({ ...e, [file]: String(err) }));
+    });
+  };
+  const end = (file: string, run: () => Promise<void>) => {
+    run().catch(() => {});
+    setProgress((p) => {
+      const next = { ...p };
+      delete next[file];
+      return next;
+    });
+  };
+
+  const value: Downloads = {
+    progress,
+    errors,
+    start: (file, url) => begin(file, () => api.downloadModel(file, url)),
+    cancel: (file) => end(file, () => api.cancelDownload(file)),
+    pull: (model) => begin(model, () => api.ollamaPull(model)),
+    cancelPull: (model) => end(model, () => api.ollamaCancelPull(model)),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -577,6 +577,36 @@ input {
   pointer-events: none;
 }
 
+/* segmented control */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  flex: none;
+}
+.segment {
+  font-size: 13px;
+  color: var(--secondary);
+  padding: 4px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.segment:hover {
+  color: var(--text);
+}
+.segment.on {
+  color: var(--text);
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.3);
+}
+.segment:focus-visible {
+  outline: 2px solid rgba(158, 140, 250, 0.6);
+}
+
 /* slider */
 .slider {
   -webkit-appearance: none;

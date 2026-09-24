@@ -62,7 +62,12 @@ export function HomePage() {
         <div className="panel" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontSize: 16, fontWeight: 600 }}>Engines</div>
           <EngineLine name={`Parakeet ${snap.config.asrVersion}`} ok={snap.speechReady} />
-          <EngineLine name={snap.config.model.split(".gguf").join("")} ok={snap.polishReady} />
+          <EngineLine
+            name={
+              snap.activeBackend === "ollama" ? `${snap.config.ollamaModel} (Ollama)` : snap.config.model.split(".gguf").join("")
+            }
+            ok={snap.polishReady}
+          />
         </div>
       </div>
     </div>
