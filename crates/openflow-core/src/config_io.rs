@@ -99,9 +99,20 @@ mod tests {
             .replace("JezFlow: jez flow, jazz flow, jazz flo", "OpenFlow: open flow, open flo")
     }
 
+    /// OpenFlow-only keys (the Swift app ignores them); stripped before byte comparisons with Swift output.
+    fn without_openflow_keys(json: &str) -> String {
+        const KEYS: [&str; 5] = ["llmBackend", "ollamaModel", "ollamaNotesModel", "ollamaPath", "ollamaUrl"];
+        json.lines()
+            .filter(|l| !KEYS.iter().any(|k| l.trim_start().starts_with(&format!("\"{k}\""))))
+            .map(|l| format!("{l}\n"))
+            .collect::<String>()
+            .trim_end_matches('\n')
+            .to_string()
+    }
+
     #[test]
     fn default_config_matches_swift_bytes() {
-        assert_eq!(to_json(&Config::default()).unwrap(), swift_default_renamed());
+        assert_eq!(without_openflow_keys(&to_json(&Config::default()).unwrap()), swift_default_renamed().trim_end_matches('\n'));
     }
 
     #[test]
@@ -111,11 +122,11 @@ mod tests {
         assert!((c.tap_threshold - 0.30000000000000004).abs() < 1e-18);
         assert!(c.memory.contains("</script>") && c.memory.contains('\u{1}'));
         assert_eq!(c.tones.get("empty").map(String::as_str), Some(""));
-        assert_eq!(to_json(&c).unwrap(), swift);
+        assert_eq!(without_openflow_keys(&to_json(&c).unwrap()), swift.trim_end_matches('\n'));
         let empty = include_str!("../testdata/swift/config_empty.json");
         let c = parse(empty.as_bytes()).unwrap();
         assert!(c.app_tones.is_empty() && c.dictionary.is_empty());
-        assert_eq!(to_json(&c).unwrap(), empty);
+        assert_eq!(without_openflow_keys(&to_json(&c).unwrap()), empty.trim_end_matches('\n'));
     }
 
     #[test]
@@ -141,7 +152,7 @@ mod tests {
         assert_eq!(c, Config::default());
         assert!(dir.path().join("models").is_dir());
         let written = fs::read_to_string(dir.path().join("config.json")).unwrap();
-        assert_eq!(written, swift_default_renamed());
+        assert_eq!(without_openflow_keys(&written), swift_default_renamed().trim_end_matches('\n'));
 
         let mut c2 = c.clone();
         c2.memory = "I am Jez".into();

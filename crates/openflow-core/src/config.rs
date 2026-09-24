@@ -76,6 +76,17 @@ pub struct Config {
     pub meeting_far_engine: String,
     /// GGUF used for meeting notes when local; "" = the polish model.
     pub notes_model: String,
+    /// Local LLM engine: "ollama" (default) or "llamacpp" (llama-server with a GGUF from models/).
+    /// When Ollama is unavailable and a GGUF is installed, llama.cpp is used as the fallback.
+    pub llm_backend: String,
+    /// Ollama server, e.g. "http://127.0.0.1:11434".
+    pub ollama_url: String,
+    /// Ollama model tag for dictation cleanup.
+    pub ollama_model: String,
+    /// Ollama model tag for meeting notes; "" = the dictation model.
+    pub ollama_notes_model: String,
+    /// `ollama` binary used to start the server when it isn't running; "" = find it (Ollama.app or PATH).
+    pub ollama_path: String,
 }
 
 fn cloud_dictation<'de, D: Deserializer<'de>>(d: D) -> Result<String, D::Error> {
@@ -167,6 +178,11 @@ impl Default for Config {
             whisper_model: "ggml-large-v3-turbo.bin".into(),
             meeting_far_engine: "whisper".into(),
             notes_model: "Qwen3.5-9B-Q4_K_M.gguf".into(),
+            llm_backend: "ollama".into(),
+            ollama_url: "http://127.0.0.1:11434".into(),
+            ollama_model: "qwen3.5:4b".into(),
+            ollama_notes_model: "qwen3.5:9b".into(),
+            ollama_path: String::new(),
         }
     }
 }
@@ -178,6 +194,10 @@ impl Config {
 
     pub fn tones_for(&self, bundle_id: Option<&str>) -> &ToneConfig {
         bundle_id.and_then(|b| self.app_tones.get(b)).unwrap_or(&self.default_tones)
+    }
+
+    pub fn uses_ollama(&self) -> bool {
+        self.llm_backend != "llamacpp"
     }
 
     pub fn traditional_chinese(&self) -> bool {

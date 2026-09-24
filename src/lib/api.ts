@@ -53,6 +53,15 @@ export interface Config {
   whisperModel: string;
   meetingFarEngine: "whisper" | "parakeet" | string;
   notesModel: string;
+  /** "ollama" (default) or "llamacpp". */
+  llmBackend: "ollama" | "llamacpp" | string;
+  ollamaUrl: string;
+  /** Ollama tag for dictation cleanup, e.g. "qwen3.5:4b". */
+  ollamaModel: string;
+  /** Ollama tag for meeting notes; "" = the dictation model. */
+  ollamaNotesModel: string;
+  /** Path to the `ollama` binary; "" = auto-detect. */
+  ollamaPath: string;
 }
 
 export interface Dictation {
@@ -149,7 +158,35 @@ export interface Snapshot {
   /** `whisperCatalog.file` exists in models/ (it is a .bin, so it is not in installedModels). Optional: when
    *  absent the UI falls back to `installedModels.includes(whisperCatalog.file)`. */
   whisperModelInstalled?: boolean;
+  /** Recommended Ollama models (qwen3.5 2b/4b/9b). */
+  ollamaCatalog: OllamaCatalogModel[];
+  /** The engine that actually loaded: "ollama", "llamacpp" (possibly as the fallback), or null (verbatim only). */
+  activeBackend: "ollama" | "llamacpp" | null;
   dataDir: string;
+}
+
+/** A model offered for `ollama pull` on the Models page. */
+export interface OllamaCatalogModel {
+  name: string;
+  label: string;
+  gb: number;
+  note: string;
+}
+
+export interface OllamaModel {
+  name: string;
+  /** bytes */
+  size: number;
+}
+
+export interface OllamaStatus {
+  /** The `ollama` binary or Ollama.app was found. */
+  installed: boolean;
+  running: boolean;
+  version: string | null;
+  url: string;
+  models: OllamaModel[];
+  error: string | null;
 }
 
 export interface DownloadProgress {
@@ -215,6 +252,13 @@ export const api = {
   overlayAction: (action: "startMeeting" | "dismissMeeting" | "stopMeeting") =>
     invoke<void>("overlay_action", { action }),
   overlayState: () => invoke<OverlayState>("overlay_state"),
+  /** Ollama server status and installed models (queries the server; call on demand, not on every render). */
+  ollamaStatus: () => invoke<OllamaStatus>("ollama_status"),
+  /** Starts Ollama (Ollama.app, or `ollama serve`) when it isn't running. */
+  ollamaStart: () => invoke<void>("ollama_start"),
+  /** `ollama pull <model>`; progress arrives on `events.download` with `file` = the model tag. */
+  ollamaPull: (model: string) => invoke<void>("ollama_pull", { model }),
+  ollamaCancelPull: (model: string) => invoke<void>("ollama_cancel_pull", { model }),
   /** Page requested with `--settings <Page>` at launch; returned once, then null. */
   initialPage: () => invoke<string | null>("initial_page"),
 };
