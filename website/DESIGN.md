@@ -33,6 +33,20 @@ typography:
     fontSize: "1.125rem"
     fontWeight: 400
     lineHeight: 1.55
+  lede:
+    fontFamily: "Archivo, 'Helvetica Neue', Arial, sans-serif"
+    fontSize: "clamp(1.15rem, 1.6vw, 1.35rem)"
+    fontWeight: 400
+    lineHeight: 1.5
+  headline-small:
+    fontFamily: "Archivo, 'Helvetica Neue', Arial, sans-serif"
+    fontSize: "clamp(1.6rem, 3vw, 2.4rem)"
+    fontWeight: 800
+    lineHeight: 1
+  code:
+    fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace"
+    fontSize: "0.95rem"
+    lineHeight: 1.7
   legend:
     fontFamily: "Archivo, 'Helvetica Neue', Arial, sans-serif"
     fontSize: "0.8125rem"
@@ -40,9 +54,13 @@ typography:
     letterSpacing: "0.04em"
     fontVariation: "'wdth' 88"
 rounded:
+  kbd: "6px"
+  cap-small: "12px"
   cap: "14px"
-  cap-top: "10px"
+  screen: "18px"
+  cap-giant: "22px"
   plate: "28px"
+  chord: "0.14em"
 spacing:
   u: "4px"
   gap: "12px"
@@ -75,7 +93,7 @@ OpenFlow is one chord, ⌘;. The site is built from the material of a mechanical
 The page is light-filled and saturated, because it's a keyboard on a desk in daylight rather than a dark dev tool. A cobalt plate carries most of the page. Light-grey alphas carry reading. Charcoal modifiers carry structure. One lime accent colour is reserved for the keys that matter: ⌘, ; and Return (Download).
 
 **Key Characteristics:**
-- Keys are 3D objects: a top face plus a darker skirt, built with layered borders and an offset shadow, never flat cards.
+- Keys are 3D objects: a top face on a solid offset-shadow skirt, never flat cards.
 - Legends and sub-legends: headline on the cap, detail printed on the front face.
 - Cobalt plate as the page field. Alphas for reading surfaces. Lime only on the ⌘ ; Return family.
 - One authored motion: key travel (press, sink, release). Nothing floats in on scroll.
@@ -102,6 +120,7 @@ This is a committed colorway: a saturated cobalt plate owns 40–60% of the page
 ## Typography
 
 **Display, Body and Legend Font:** Archivo (variable: wght and wdth), falling back to Helvetica Neue and Arial.
+**Code Font:** the system monospace (ui-monospace, SF Mono, Menlo), used only for real commands and terminal output, never as decoration.
 
 **Character:** a single engineered grotesk, stretched wide for the headlines that sit on the plate and narrowed for legends, the way keycap legends use one family at different widths.
 
@@ -122,21 +141,21 @@ This is a committed colorway: a saturated cobalt plate owns 40–60% of the page
 
 ## Elevation & Depth
 
-Depth is physical key height, not ambient glow. Each cap is a top face plus a darker skirt, drawn with bottom-heavy borders, and it sits on the plate with a short offset shadow. Pressing moves the top face down by the skirt height and shortens the shadow.
+Depth is physical key height, not ambient glow. Each key is a top face with a solid, darker skirt drawn as an offset shadow (`--depth`: 4px tiny, 7px standard, 11px giant), plus a soft drop below it. Pressing moves the key down by its depth, onto its skirt, using transform only; layout never moves. A selected key in a group sits half-pressed (3px). The L-shaped Return key draws its skirt as a clipped layer, because clip-path would cut a shadow.
 
 ### Shadow Vocabulary
-- **Cap rest** (`0 6px 0 var(--skirt), 0 10px 18px rgba(10,20,70,.28)`): every key at rest.
-- **Cap pressed** (`0 1px 0 var(--skirt), 0 3px 6px rgba(10,20,70,.3)`, translateY 5px): held or active keys.
+- **Cap rest** (`inset 0 0 0 1px rgba(0,0,0,.06), 0 var(--depth) 0 var(--skirt), 0 calc(var(--depth) + 6px) 16px var(--drop)`): every key at rest. `--drop` is cobalt-tinted on cobalt plates, ink-tinted on light plates.
+- **Cap pressed** (`0 1px 0 var(--skirt), 0 3px 6px var(--drop)`, translateY(depth − 1px)): held or active keys.
 
 ## Shapes
 
-Keys are rounded rectangles with a 14px cap radius, and the top face is inset with a 10px radius, like a sculpted dish. The Download key is ISO-Return shaped (an L), made with clip-path. The plate has a 28px radius where it's framed.
+Keys are rounded rectangles (12px small, 14px standard, 22px giant) with a soft top highlight, like a sculpted dish. The Download key is ISO-Return shaped (an L), made with clip-path. The plate has a 28px radius where it's framed.
 
 ## Components
 
 ### Keys (signature)
 - **Alpha, Mod, Accent** variants share one structure: skirt, top face, legend and optional front sub-legend.
-- **States:** rest; hover (top face lightens 3%); pressed or held (sinks 5px); focus-visible (2px lime ring offset outside the skirt on mods and alphas, ink ring on accent keys); disabled (no skirt, 50% legend).
+- **States:** rest; hover (top face lightens 3%); pressed or held (sinks by its depth onto the skirt); focus-visible (2px lime ring offset outside the skirt on mods and alphas, ink ring on accent keys); disabled (no skirt, 50% legend).
 
 ### Buttons
 - **Return (primary):** a lime ISO-Return key labelled "Download for Mac", with a "macOS 15+ · Apple Silicon" sub-legend.
