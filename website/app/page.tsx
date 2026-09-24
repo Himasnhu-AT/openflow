@@ -7,7 +7,7 @@ FORM: #5 The Keycap. Staging: a colorway sheet. Seed 42a5f6e6.
 */
 
 import Image from "next/image";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import Demo from "@/components/Demo";
 import Gallery from "@/components/Gallery";
 import ToneSwitcher from "@/components/ToneSwitcher";
@@ -47,8 +47,6 @@ const FIXES: { legend: string; sub: string; w?: "w15" | "w2" }[] = [
   { legend: "“…actually scratch that”", sub: "sentence deleted", w: "w2" },
   { legend: "“three things: …”", sub: "1. 2. 3.", w: "w15" },
 ];
-
-const swatch = (c: string) => ({ "--c": c }) as CSSProperties;
 
 export default function Home() {
   return (
@@ -93,7 +91,7 @@ export default function Home() {
               Hold <span className="chord">⌘;</span> and&nbsp;talk.
             </h1>
             <p className="lede">
-              Your words land where your cursor is: cleaned up, in your voice, and they never leave your Mac.
+              Your words land at your cursor, cleaned up and in your voice. They never leave your Mac.
             </p>
             <div className="cta-row">
               <a className="key key--accent key--return" href={LINKS.download}>
@@ -314,16 +312,9 @@ export default function Home() {
       <footer className="footer">
         <div className="wrap footer__row">
           <span className="brand__word brand__word--small">OpenFlow</span>
-          <span className="colorway" aria-label="Colorway: cobalt plate, PBT alpha, charcoal modifier, lime accent">
-            <i style={swatch("var(--plate-cobalt)")} />
-            <i style={swatch("var(--cap-alpha)")} />
-            <i style={swatch("var(--cap-mod)")} />
-            <i style={swatch("var(--cap-accent)")} />
-            <span>Colorway: Cobalt / Lime · PBT</span>
-          </span>
           <span>Open source under BSD 3-Clause.</span>
           <a href={LINKS.source}>Source</a>
-          <a href="#private">Privacy: everything runs on your Mac</a>
+          <a href="#private">Privacy</a>
         </div>
       </footer>
     </>

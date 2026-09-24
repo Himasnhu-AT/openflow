@@ -141,7 +141,7 @@ This is a committed colorway: a saturated cobalt plate owns 40–60% of the page
 
 ## Elevation & Depth
 
-Depth is physical key height, not ambient glow. Each key is a top face with a solid, darker skirt drawn as an offset shadow (`--depth`: 4px tiny, 7px standard, 11px giant), plus a soft drop below it. Pressing moves the key down by its depth, onto its skirt, using transform only; layout never moves. A selected key in a group sits half-pressed (3px). The L-shaped Return key draws its skirt as a clipped layer, because clip-path would cut a shadow.
+Depth is physical key height, not ambient glow. Each key is a top face with a solid, darker skirt drawn as an offset shadow (`--depth`: 4px tiny, 7px standard, 11px giant), plus a soft drop below it. Pressing moves the key down by its depth, onto its skirt, using transform only; layout never moves. A selected key in a group sits half-pressed (3px).
 
 ### Shadow Vocabulary
 - **Cap rest** (`inset 0 0 0 1px rgba(0,0,0,.06), 0 var(--depth) 0 var(--skirt), 0 calc(var(--depth) + 6px) 16px var(--drop)`): every key at rest. `--drop` is cobalt-tinted on cobalt plates, ink-tinted on light plates.
@@ -149,7 +149,7 @@ Depth is physical key height, not ambient glow. Each key is a top face with a so
 
 ## Shapes
 
-Keys are rounded rectangles (12px small, 14px standard, 22px giant) with a soft top highlight, like a sculpted dish. The Download key is ISO-Return shaped (an L), made with clip-path. The plate has a 28px radius where it's framed.
+Keys are rounded rectangles (12px small, 14px standard, 22px giant) with a soft top highlight, like a sculpted dish. The Download key is a wide Return key, a plain rectangle like every other cap. (An ISO L-shape was tried and read as a rendering glitch at this width.) The plate has a 28px radius where it's framed.
 
 ## Components
 
@@ -158,14 +158,14 @@ Keys are rounded rectangles (12px small, 14px standard, 22px giant) with a soft 
 - **States:** rest; hover (top face lightens 3%); pressed or held (sinks by its depth onto the skirt); focus-visible (3px lime ring, offset 4px, on mods and alphas; ink ring on accent keys); hover pre-travel of 1px; disabled (no skirt, 50% legend).
 
 ### Buttons
-- **Return (primary):** a lime ISO-Return key labelled "Download for Mac", with a "macOS 15+ · Apple Silicon" sub-legend.
+- **Return (primary):** a wide lime Return key labelled "Download for Mac", with a "macOS 15+ · Apple Silicon" sub-legend.
 - **Mod (secondary):** a charcoal key, e.g. "View source".
 
 ### Function-row keys (navigation)
 Small charcoal keys with an F-number legend above the section name (F1 What it fixes … F4 Open source).
 
 ### Fact caps and rows
-Facts are alpha keys with a bold legend and a front sub-legend, never bullet lists. A plain `ul` of facts is off-system.
+Facts are alpha keys (`li`, default cursor, no hover change, since they aren't controls) with a bold legend and a front sub-legend, never bullet lists. A plain `ul` of facts is off-system.
 
 ### Plate wells
 Screenshots sit in a recessed well cut into the plate: deep cobalt on cobalt plates, and #d9dce5 on light plates, with an inset shadow.
@@ -184,4 +184,5 @@ A PBT-alpha surface framed as a Mac text field (Messages, Mail, Terminal). It sh
 - **Don't** use flat, same-size icon cards. Group items as key clusters with legends instead.
 - **Don't** use gradient text, glassmorphism or glow halos. Depth comes from key height.
 - **Don't** put lime on anything outside the ⌘ ; Return family.
+- **Don't** texture the plate (dot grids, noise). The caps carry the keyboard; the plate stays flat cobalt.
 - **Don't** animate sections in on scroll. The only motion is key travel and the demo text.

@@ -228,7 +228,12 @@ kbd {
   transition: filter 120ms ease;
 }
 
-.key:hover .cap {
+/* Legend keys (fact sheets, pipeline rows) are printed examples, not controls: no pointer, no hover. */
+li.key {
+  cursor: default;
+}
+a.key:hover .cap,
+button.key:hover .cap {
   filter: brightness(1.04);
 }
 /* Pre-travel: a key gives a little under a resting finger. */
@@ -323,37 +328,12 @@ kbd {
   font-size: 0.9rem;
 }
 
-/* ISO Return: an L-shaped key. clip-path would cut the shadow skirt, so the skirt is a ::before layer. */
+/* Return: the wide key at the end of the row. Same skirt and travel as every other key. */
 .key--return {
-  --notch: 10%;
   min-width: 18.5rem;
-  background: none;
-  box-shadow: none;
-  filter: drop-shadow(0 12px 14px var(--drop));
-}
-.key--return::before {
-  content: "";
-  position: absolute;
-  inset: var(--depth) 0 calc(var(--depth) * -1);
-  background: var(--skirt);
-  border-radius: 14px;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, var(--notch) 100%, var(--notch) 52%, 0 52%);
-  transition: transform 90ms var(--ease-out);
 }
 .key--return .cap {
-  position: relative;
-  padding: 16px 24px 18px calc(var(--notch) + 18px);
-  background:
-    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.24), transparent 60%),
-    var(--top);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, var(--notch) 100%, var(--notch) 52%, 0 52%);
-}
-.key--return:active,
-.key--return.is-down {
-  box-shadow: none;
-}
-.key--return:active::before {
-  transform: translateY(calc(1px - var(--depth)));
+  padding: 16px 24px 18px;
 }
 .key--return .legend--big,
 .key--return .sublegend {
@@ -386,18 +366,6 @@ kbd {
   padding-block: clamp(72px, 9vw, 120px);
 }
 
-/* Anodized plate: a faint grid of switch cut-outs, like the plate under the caps. */
-.plate--cobalt::before,
-.plate--hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(circle at center, rgba(8, 20, 90, 0.35) 0 2.5px, transparent 3px);
-  background-size: var(--u) var(--u);
-  background-position: calc(var(--u) / 2) calc(var(--u) / 2);
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.35));
-}
 .plate > * {
   position: relative;
 }
@@ -761,6 +729,10 @@ kbd {
   grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
   align-items: center;
 }
+/* The build log is much shorter than the copy beside it; centre it instead of leaving a void below. */
+#open .split {
+  align-items: center;
+}
 
 .tones__said {
   margin: 0 0 22px;
@@ -1004,7 +976,7 @@ kbd {
   }
 }
 
-/* ------------------------------------------------------------------ fact caps, wells, tag, colorway */
+/* ------------------------------------------------------------------ fact caps, wells, tag */
 
 .caps {
   display: flex;
@@ -1055,22 +1027,6 @@ kbd {
   width: 100%;
   object-fit: cover;
   object-position: top left;
-}
-
-.colorway {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.colorway i {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  background: var(--c);
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
-}
-.colorway span {
-  margin-left: 6px;
 }
 
 .row .sublegend code {
