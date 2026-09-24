@@ -248,6 +248,9 @@ fn launch(orc: &Orc) {
         })));
     }
 
+    // Speech servers a previous run left behind (no meeting can be running yet).
+    tauri::async_runtime::spawn(WhisperServer::kill_orphans());
+
     // Meeting detection.
     {
         let o = Arc::clone(orc);

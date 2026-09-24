@@ -47,7 +47,8 @@ fn migrate(c: &mut Config) {
     if c.whisper_server_path == "/opt/homebrew/bin/whisper-server" {
         c.whisper_server_path.clear();
     }
-    if c.whisper_model == "ggml-large-v3-turbo.bin" {
+    // Only a config that now uses transcribe-server moves to the GGUF: whisper.cpp cannot load it.
+    if c.whisper_server_path.is_empty() && c.whisper_model == "ggml-large-v3-turbo.bin" {
         c.whisper_model = crate::catalog::WHISPER_FILE.into();
     }
 }
@@ -153,6 +154,9 @@ mod tests {
         assert_eq!((c.whisper_server_path.as_str(), c.whisper_model.as_str()), ("/usr/local/bin/my-server", "mine.gguf"));
         let c = parse(br#"{"whisperServerPath": "/opt/homebrew/bin/whisper-server", "whisperModel": "ggml-large-v3-turbo.bin"}"#).unwrap();
         assert_eq!((c.whisper_server_path.as_str(), c.whisper_model.as_str()), ("", crate::catalog::WHISPER_FILE));
+        // Intel Homebrew's whisper-server stays, and keeps the GGML model it can load.
+        let c = parse(br#"{"whisperServerPath": "/usr/local/bin/whisper-server", "whisperModel": "ggml-large-v3-turbo.bin"}"#).unwrap();
+        assert_eq!((c.whisper_server_path.as_str(), c.whisper_model.as_str()), ("/usr/local/bin/whisper-server", "ggml-large-v3-turbo.bin"));
     }
 
     #[test]

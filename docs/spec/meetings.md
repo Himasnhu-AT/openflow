@@ -553,6 +553,9 @@ Meeting-Assistant project; the others fix gaps that neither app handled.
   - Every request needs `Authorization: Bearer <OPENFLOW_STT_TOKEN>`, a random token per server start. A web page
     can POST to localhost, but it cannot read the token.
   - The server exits within 0.5 s once `OPENFLOW_PARENT_PID` is gone.
+  - Each server listens on a free port chosen by the OS, because the previous meeting's server can still be draining
+    when the next meeting starts. A server that exits while starting fails at once. Leftover servers from an
+    earlier run are killed once at launch.
 - Measured on this Mac with a 5 s clip:
   - Load: 7.5 s cold, 0.9 s warm.
   - About 0.35 s per utterance.

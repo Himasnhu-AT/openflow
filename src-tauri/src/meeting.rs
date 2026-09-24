@@ -223,6 +223,9 @@ impl MeetingSession {
         let mut closed = false;
         loop {
             // Checked before draining the queue: whatever the tap emitted before this moment is already queued.
+            if closed && held.is_empty() {
+                break; // every sender is gone and nothing waits: no more work can arrive
+            }
             let flushed = self.flushed.load(Ordering::SeqCst);
             let release = closed || held.front().is_some_and(|u| self.far_side_caught_up(u));
             let mut incoming = Vec::new();

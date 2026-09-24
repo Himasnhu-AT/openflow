@@ -40,7 +40,7 @@ Windows/Linux ports add `openflow-platform/src/{windows,linux}` and a sherpa-onn
 | Ollama (polish, default engine) | 127.0.0.1:11434 (`config.ollamaUrl`); started via Ollama.app or `ollama serve` |
 | llama-server (polish, alternative/fallback) | 127.0.0.1:8765 (`config.llamaPort`) |
 | llama-server (notes model, transient) | 127.0.0.1:8767 |
-| transcribe-server (meetings, far side; `sidecar/transcribe-server`) | 127.0.0.1:8768 |
+| transcribe-server (meetings, far side; `sidecar/transcribe-server`) | 127.0.0.1, a free port per server |
 | browser bridge (Meet extension → app) | 127.0.0.1:8770 |
 | openflow-helper | child process, stdio |
 

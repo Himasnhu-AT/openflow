@@ -25,6 +25,9 @@ use tokio::sync::watch;
 use crate::cloud::{multipart_body, new_boundary, segments_of};
 use crate::polisher::{pkill, terminate};
 
+/// Port for `server_args`/`whisper_args` defaults and tests. A running server takes a free port chosen by the OS
+/// instead: the previous meeting's server may still be loading or draining when the next meeting starts, and a
+/// server only listens once its model is loaded, so "is 8768 free?" is not a safe test.
 pub const PORT: u16 = 8768;
 
 /// A meeting restarts a crashed server at most this many times, then stays on Parakeet.
@@ -40,7 +43,10 @@ pub enum Status {
 
 pub struct WhisperServer {
     config: Config,
-    base: String,
+    /// `http://127.0.0.1:<port>` of the current process.
+    base: Mutex<String>,
+    /// Set by `with_base_url` (tests): talk to that server and never pick a port.
+    fixed_base: bool,
     child: Mutex<Option<Child>>,
     http: reqwest::Client,
     status: watch::Sender<Status>,
@@ -79,6 +85,11 @@ pub fn resolve_server_path(config: &Config) -> Option<PathBuf> {
     }
 }
 
+/// A port the OS says is free right now.
+fn free_port() -> u16 {
+    std::net::TcpListener::bind(("127.0.0.1", 0)).and_then(|l| l.local_addr()).map(|a| a.port()).unwrap_or(PORT)
+}
+
 /// Homebrew's whisper-server takes different flags and no token.
 fn is_legacy(path: &Path) -> bool {
     path.file_name().is_some_and(|n| n.to_string_lossy().starts_with("whisper-server"))
@@ -86,13 +97,21 @@ fn is_legacy(path: &Path) -> bool {
 
 /// Arguments after `transcribe-server`.
 pub fn server_args(model_path: &str) -> Vec<String> {
-    ["-m", model_path, "--host", "127.0.0.1", "--port", &PORT.to_string()].iter().map(|s| s.to_string()).collect()
+    server_args_on(model_path, PORT)
+}
+
+fn server_args_on(model_path: &str, port: u16) -> Vec<String> {
+    ["-m", model_path, "--host", "127.0.0.1", "--port", &port.to_string()].iter().map(|s| s.to_string()).collect()
 }
 
 /// Arguments after Homebrew's `whisper-server`. `-nf`: no temperature fallback, which is where Whisper's fluent inventions on
 /// noise come from; `-sns`: suppress non-speech tokens ("[Music]", "♪").
 pub fn whisper_args(model_path: &str) -> Vec<String> {
-    ["-m", model_path, "--host", "127.0.0.1", "--port", &PORT.to_string(), "-l", "auto", "-t", "6", "-nf", "-sns"]
+    whisper_args_on(model_path, PORT)
+}
+
+fn whisper_args_on(model_path: &str, port: u16) -> Vec<String> {
+    ["-m", model_path, "--host", "127.0.0.1", "--port", &port.to_string(), "-l", "auto", "-t", "6", "-nf", "-sns"]
         .iter()
         .map(|s| s.to_string())
         .collect()
@@ -136,7 +155,8 @@ impl WhisperServer {
     pub fn new(config: Config) -> Self {
         Self {
             config,
-            base: format!("http://127.0.0.1:{PORT}"),
+            base: Mutex::new(format!("http://127.0.0.1:{PORT}")),
+            fixed_base: false,
             child: Mutex::new(None),
             http: reqwest::Client::new(),
             status: watch::channel(Status::Idle).0,
@@ -190,8 +210,20 @@ impl WhisperServer {
 
     /// Points requests at another server (tests use a local mock).
     pub fn with_base_url(mut self, base: impl Into<String>) -> Self {
-        self.base = base.into().trim_end_matches('/').to_string();
+        self.base = Mutex::new(base.into().trim_end_matches('/').to_string());
+        self.fixed_base = true;
         self
+    }
+
+    fn base(&self) -> String {
+        self.base.lock().unwrap().clone()
+    }
+
+    /// Speech servers left behind by a previous run of the app (a crash before the parent watchdog existed, or a
+    /// Homebrew whisper-server). Call once at launch, never while a meeting may be running.
+    pub async fn kill_orphans() {
+        pkill("whisper-server.*--port 8768").await;
+        pkill("transcribe-server -m .*/OpenFlow/models/").await;
     }
 
     pub fn model_path(&self) -> PathBuf {
@@ -203,17 +235,21 @@ impl WhisperServer {
         self.server_path().is_some_and(|p| p.exists()) && self.model_path().exists()
     }
 
-    /// Kills a leftover server on the port, spawns a new one and waits up to 60 s for it to answer.
+    /// Spawns a server on a free port and waits up to 60 s for it to answer. A process that exits while starting
+    /// (a model it cannot load, a bad flag) fails at once instead of after the timeout.
     pub async fn start(&self) -> Result<()> {
         if !self.available() {
             self.status.send_replace(Status::Failed);
             bail!("the speech server or its model is missing");
         }
         self.status.send_replace(Status::Starting);
-        pkill(&format!("(transcribe|whisper)-server.*--port {PORT}")).await;
         let path = self.server_path().unwrap_or_default();
         let model = self.model_path().to_string_lossy().to_string();
-        let args = if is_legacy(&path) { whisper_args(&model) } else { server_args(&model) };
+        let port = if self.fixed_base { PORT } else { free_port() };
+        if !self.fixed_base {
+            *self.base.lock().unwrap() = format!("http://127.0.0.1:{port}");
+        }
+        let args = if is_legacy(&path) { whisper_args_on(&model, port) } else { server_args_on(&model, port) };
         let mut child = Command::new(&path)
             .args(args)
             .env("OPENFLOW_STT_TOKEN", &self.token)
@@ -227,10 +263,14 @@ impl WhisperServer {
                 self.status.send_replace(Status::Failed);
             })?;
         if let Some(err) = child.stderr.take() {
+            // Byte lines, not `lines()`: one non-UTF-8 byte would end the reader, and a whisper-server writing to the
+            // closed pipe then dies of SIGPIPE.
             tokio::spawn(async move {
-                let mut lines = BufReader::new(err).lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    tracing::debug!(target: "whisper", "{line}");
+                let mut reader = BufReader::new(err);
+                let mut line = Vec::new();
+                while reader.read_until(b'\n', &mut line).await.is_ok_and(|n| n > 0) {
+                    tracing::debug!(target: "whisper", "{}", String::from_utf8_lossy(&line).trim_end());
+                    line.clear();
                 }
             });
         }
@@ -240,13 +280,18 @@ impl WhisperServer {
         let deadline = Instant::now() + Duration::from_secs(60);
         while Instant::now() < deadline {
             if self.is_up().await {
-                tracing::info!(target: "whisper", "speech server ready ({})", path.display());
+                tracing::info!(target: "whisper", "speech server ready on port {port} ({})", path.display());
                 self.warm_up().await;
                 self.status.send_replace(Status::Ready);
                 return Ok(());
             }
             if self.status() == Status::Idle {
                 bail!("speech server stopped while starting");
+            }
+            let exited = self.child.lock().unwrap().as_mut().and_then(|c| c.try_wait().ok().flatten());
+            if let Some(code) = exited {
+                self.status.send_replace(Status::Failed);
+                bail!("speech server exited while starting ({code}); see the log for its output");
             }
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
@@ -270,7 +315,7 @@ impl WhisperServer {
 
     /// `/` answers 200 once the model is loaded (401 would be someone else's server on our port).
     async fn is_up(&self) -> bool {
-        let r = self.http.get(format!("{}/", self.base)).bearer_auth(&self.token).timeout(Duration::from_secs(1)).send().await;
+        let r = self.http.get(format!("{}/", self.base())).bearer_auth(&self.token).timeout(Duration::from_secs(1)).send().await;
         r.is_ok_and(|r| r.status().is_success())
     }
 
@@ -294,7 +339,7 @@ impl WhisperServer {
         let body = multipart_body(&boundary, &fields, &openflow_core::wav::pcm16_bytes(samples));
         let resp = self
             .http
-            .post(format!("{}/inference", self.base))
+            .post(format!("{}/inference", self.base()))
             .bearer_auth(&self.token)
             .header("Content-Type", format!("multipart/form-data; boundary={boundary}"))
             .body(body)
