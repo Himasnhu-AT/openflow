@@ -15,7 +15,7 @@
   --on-plate-soft: #c9d1ff;
   --on-mod-soft: #aab1c2;
 
-  --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
   --u: clamp(64px, 6.2vw, 84px);
   --section: clamp(96px, 13vw, 176px);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
