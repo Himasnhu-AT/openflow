@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, bail, Result};
-use openflow_core::whisper_filter::filter_whisper;
+use openflow_core::whisper_filter::filter_whisper_meeting;
 use openflow_core::Config;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -135,14 +135,16 @@ pub fn vocabulary_prompt(dictionary: &[String]) -> String {
 }
 
 /// On noise Whisper can "transcribe" its own prompt ("Vocabulary.", "Zentro, Priya."): output whose words all come
-/// from the prompt is dropped.
+/// from the prompt is dropped when it says "vocabulary" or lists two or more terms. One term alone ("Priya.") is
+/// kept: people say names on their own.
 pub fn echoes_prompt(text: &str, prompt: &str) -> bool {
     let words = |t: &str| -> Vec<String> {
         t.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).map(str::to_lowercase).collect()
     };
     let said = words(text);
     let prompt = words(prompt);
-    !said.is_empty() && !prompt.is_empty() && said.iter().all(|w| prompt.contains(w))
+    let all_from_prompt = !said.is_empty() && !prompt.is_empty() && said.iter().all(|w| prompt.contains(w));
+    all_from_prompt && (said.len() >= 2 || said[0] == "vocabulary")
 }
 
 /// Newlines become spaces, runs of whitespace collapse to one space.
@@ -323,7 +325,7 @@ impl WhisperServer {
     pub async fn transcribe(&self, samples: &[f32]) -> Result<(String, String)> {
         let json = self.request(samples).await?;
         let text = json.get("text").and_then(Value::as_str).ok_or_else(|| anyhow!("speech server reply not understood"))?;
-        let kept = filter_whisper(&join_lines(text), &segments_of(&json), samples.len() as f64 / 16_000.0);
+        let kept = filter_whisper_meeting(&join_lines(text), &segments_of(&json), samples.len() as f64 / 16_000.0);
         let kept = if echoes_prompt(&kept, &vocabulary_prompt(&self.config.dictionary)) { String::new() } else { kept };
         let language = json.get("language").and_then(Value::as_str).unwrap_or_default().to_lowercase();
         Ok((kept, language))
@@ -376,6 +378,7 @@ mod tests {
         let p = vocabulary_prompt(&["Zentro".into(), "Priya".into()]);
         assert!(echoes_prompt("Vocabulary.", &p));
         assert!(echoes_prompt("Zentro, Priya.", &p));
+        assert!(!echoes_prompt("Priya.", &p)); // someone answering with a name
         assert!(!echoes_prompt("Priya owns the checklist.", &p));
         assert!(!echoes_prompt("Vocabulary.", ""));
         assert!(!echoes_prompt("", &p));

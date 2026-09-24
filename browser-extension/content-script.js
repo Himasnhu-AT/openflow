@@ -79,7 +79,8 @@ if (typeof document !== "undefined" && typeof chrome !== "undefined" && chrome.r
 
   const send = (msg) => {
     try {
-      chrome.runtime.sendMessage(msg);
+      // The service worker never answers; without the catch every send logs "message port closed".
+      chrome.runtime.sendMessage(msg).catch(() => {});
     } catch (_) {
       // The extension was reloaded; this page's script is orphaned until the tab reloads.
     }

@@ -16,7 +16,7 @@ use openflow_core::model::MeetingSegment;
 use openflow_core::speakers::SpeakerTimeline;
 use openflow_core::segmenter::Segmenter;
 use openflow_core::text_rules;
-use openflow_core::whisper_filter::collapse_repeats;
+use openflow_core::whisper_filter::{collapse_repeats, strip_annotations};
 use openflow_core::traits::{AudioDevices, Mic, SystemAudio};
 use openflow_engines::meeting_engine::MeetingEngine;
 use openflow_platform::mic_watchdog::MicWatchdog;
@@ -298,7 +298,8 @@ impl MeetingSession {
                 return None;
             }
         };
-        let text = collapse_repeats(&text);
+        // Every engine (cloud and Parakeet included): call audio gets the meeting clean-up.
+        let text = collapse_repeats(&strip_annotations(&text));
         let config = self.shared.config();
         let text = if english {
             text_rules::meeting_line(&text, &config.dictionary)
