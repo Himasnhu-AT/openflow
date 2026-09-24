@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Result};
 use futures_util::StreamExt;
+use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 use tokio::task::AbortHandle;
 
@@ -112,12 +113,14 @@ async fn fetch(http: &reqwest::Client, url: &str, dest: &Path, file: &str, on_ev
     let tmp = temp_path(dest);
     let mut out = tokio::fs::File::create(&tmp).await?;
     let mut written: u64 = 0;
+    let mut hasher = Sha256::new();
     let mut stream = resp.bytes_stream();
     let mut last_reported = -1.0f64;
     let result: Result<()> = async {
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
             out.write_all(&chunk).await?;
+            hasher.update(&chunk);
             written += chunk.len() as u64;
             if let Some(total) = total {
                 let p = written as f64 / total as f64;
@@ -129,6 +132,13 @@ async fn fetch(http: &reqwest::Client, url: &str, dest: &Path, file: &str, on_ev
             }
         }
         out.flush().await?;
+        // Pinned models are checked byte for byte: a truncated or swapped file must never be loaded.
+        if let Some(want) = openflow_core::catalog::expected_sha256(file) {
+            let got = format!("{:x}", hasher.finalize());
+            if got != want {
+                bail!("Download failed: checksum mismatch for {file}");
+            }
+        }
         Ok(())
     }
     .await;

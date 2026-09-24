@@ -184,7 +184,7 @@ export function SettingsPage() {
           <SettingRow
             key="far"
             title="Far side (them)"
-            subtitle="Whisper large v3 turbo via whisper.cpp: any language, best on compressed call audio. Needs `brew install whisper-cpp` and the model in the models folder"
+            subtitle="Whisper large v3 turbo on the built-in speech server: any language, best on compressed call audio. Download the model under Models"
           >
             {picker("meetingFarEngine", [
               ["whisper", "Whisper large v3 turbo"],

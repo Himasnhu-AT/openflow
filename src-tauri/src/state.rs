@@ -131,7 +131,9 @@ impl Shared {
         let store = self.store();
         let rt = self.runtime();
         let config = store.config.clone();
-        let whisper_server_found = std::path::Path::new(&config.whisper_server_path).exists();
+        // The bundled transcribe-server, or the server the user configured.
+        let whisper_server_found =
+            openflow_engines::whisper_server::resolve_server_path(&config).is_some_and(|p| p.exists());
         Snapshot {
             history: store.history.clone(),
             stats: store.stats.clone(),

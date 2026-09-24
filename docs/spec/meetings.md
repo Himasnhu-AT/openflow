@@ -476,3 +476,90 @@ Notes shown in the UI:
 - A watchdog restart of the mic does not reset the segmenter's elapsed time.
 - `Store.update` rewrites the whole JSON file on every change. The live UI reads `store.meetings`.
 - Swift dates are stored as seconds since 2001-01-01, so the Rust port must convert them to stay compatible with existing JSON files.
+## 13. Beyond the Swift app (OpenFlow changes)
+
+These deliberately differ from the Swift behaviour above. Some were adopted from a review of the
+Meeting-Assistant project; the others fix gaps that neither app handled.
+
+- **One wall clock for both channels.** An utterance's `time` is its start in seconds since the session started,
+  placed from when it was emitted (the segmenter reports how far behind "now" its end is). Mic restarts no longer
+  shift the timeline, and "You" and "Them" lines can be compared.
+- **Speaker echo is dropped** (`openflow_core::echo`). Without headphones the mic hears the far side. Each mic
+  utterance waits (at most 30 s) until the tap has no utterance in progress that could overlap it. It is then
+  dropped when at least 60% of its words (three or more words) were said by the far side within ±2 s.
+- **Cap at 25 s, cut at a pause.** The segmenter's hard cap is 25 s, under Whisper's 30 s window. At the cap it
+  cuts just after the quietest frame of the last 4 s when that frame is under half the stretch's average. The
+  rest carries into the next utterance.
+- **Whisper decoding.** `whisper-server` runs with `-nf` (no temperature fallback, the main source of fluent
+  inventions on noise) and `-sns` (suppress non-speech tokens). Requests send `temperature_inc=0.0` and, when
+  the dictionary has terms, `prompt="Vocabulary: a, b."` (capped at about 400 characters).
+- **Stricter hallucination filter.** Segments with `no_speech_prob > 0.5` and `avg_logprob < -0.5` are dropped,
+  and so are bare web addresses. Sound annotations (`[BLANK_AUDIO]`, `(music)`, `*sighs*`, `♪…♪`) are
+  stripped. Decoder loops are collapsed: a repeated 3–10 word run is dropped, and one or two words repeated
+  four or more times are cut back to one copy.
+- **whisper-server lifecycle.**
+  - Far-side lines wait for the server to finish starting, instead of going to Parakeet for the first minute.
+  - A one-second silent warm-up absorbs the Metal compile.
+  - A crashed server is restarted, at most twice per meeting.
+  - The server is stopped only after the queue has drained.
+- **Retry once.** A failed transcription is retried after 500 ms before the utterance is given up.
+- **Tap health (helper).**
+  - Every 2 s the tap is rebuilt after 8 s without an IO callback. A live tap delivers buffers even in silence.
+  - It is also rebuilt when the call app's set of audio processes changes, because browsers and Zoom start new
+    ones mid-call.
+- **Auto-stop.** A meeting tied to a call app ends 20 s after that app closes its microphone
+  (`kAudioProcessPropertyIsRunningInput`), but only once the mic has been seen open.
+- **Crash recovery.** At launch, a meeting without an `end` is closed 5 s after its last line, and then gets notes.
+- **Empty and tiny meetings.** A stopped meeting with no lines and no notes is deleted. Notes are not written
+  for fewer than 25 words.
+
+## 14. Speaker names and the voice gate
+
+- **Silero VAD gate** (`MeetingEngine::has_voice`). Every utterance goes through Silero (FluidAudio Core ML,
+  256 ms chunks, helper method `vad`) before speech recognition. The utterance is skipped when no chunk
+  reaches 0.5. This is a gate only: the clip is never cut. If the VAD errors, the audio is kept (fail open).
+- **Speaker timeline** (`openflow_core::speakers`). Evidence is stamped on the meeting clock.
+  - A far-side line gets a name in one of two ways:
+    - by caption words: at least 2 matching words, covering 40% of the line, and 1.5× the runner-up;
+    - otherwise by the dominant active speaker over its audio interval: 0.3 s lag compensation, evidence stale
+      after 10 s, at least 0.2 s of overlap, and 1.25× the runner-up.
+  - Otherwise the line stays "Them".
+  - The user's own name never labels a far-side line.
+  - The notes prompt treats any label other than "You" as someone else on the call.
+- **Zoom** (helper `zoomSpeakers`, polled every 1 s during a Zoom meeting). Accessibility with
+  `AXManualAccessibility`. It reads the "Talking: X" label, the floating window's first tile, tile descriptions
+  and profile buttons.
+- **Google Meet** (`browser-extension/`, `src-tauri/src/bridge.rs`).
+  - The extension POSTs `{"type":"speaker"|"caption"|"call", …}` to `http://127.0.0.1:8770/meet`.
+  - The app accepts only `Origin: chrome-extension://mbddbmiendbipklcehlgelanomjpoppf`.
+  - Bodies are capped at 64 KB, names at 60 characters and captions at 2000 characters.
+
+## 15. Speech server: transcribe.cpp
+
+- `sidecar/transcribe-server/` builds `transcribe-server`:
+  - It wraps [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) v0.2.3, pinned in
+    `PINNED_COMMIT`, and runs on Metal.
+  - It is statically linked (about 4 MB) and bundled as a Tauri `externalBin`.
+  - `build.sh` refuses to build any other commit.
+- The model is `whisper-large-v3-turbo-Q8_0.gguf` (886,381,824 bytes). Its URL is revision-pinned, and the
+  downloader checks its SHA-256.
+- Configs still on the old Homebrew defaults (`/opt/homebrew/bin/whisper-server`, `ggml-large-v3-turbo.bin`) migrate
+  on load. A custom path is kept; a path whose file name starts with `whisper-server` still gets whisper.cpp's flags.
+- Protocol:
+  - Same `POST /inference` multipart as whisper-server (`file`, `language`, `prompt`, `temperature`,
+    `temperature_inc`).
+  - The reply is `{text, language (ISO code), truncated, segments[{text, no_speech_prob, avg_logprob,
+    compression_ratio}]}`. The segment fields come from transcribe.cpp's per-chunk Whisper trace.
+  - Every request needs `Authorization: Bearer <OPENFLOW_STT_TOKEN>`, a random token per server start. A web page
+    can POST to localhost, but it cannot read the token.
+  - The server exits within 0.5 s once `OPENFLOW_PARENT_PID` is gone.
+- Measured on this Mac with a 5 s clip:
+  - Load: 7.5 s cold, 0.9 s warm.
+  - About 0.35 s per utterance.
+  - About 1.06 GB resident.
+- `no_speech_prob` is real but near 0 for large-v3-turbo, even on silence (logit -13 against a top logit of 8.7).
+  This is a property of the model, not of the engine. Silence and noise are therefore stopped by:
+  - the Silero gate;
+  - the ghost list;
+  - the log-probability rules;
+  - `echoes_prompt`, which drops output made only of the vocabulary prompt's words.

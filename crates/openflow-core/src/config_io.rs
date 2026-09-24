@@ -36,7 +36,20 @@ pub fn parse(bytes: &[u8]) -> anyhow::Result<Config> {
         anyhow::bail!("config.json is not a JSON object");
     }
     swift_json::strip_top_level_nulls(&mut v);
-    Ok(serde_json::from_value(v)?)
+    let mut config: Config = serde_json::from_value(v)?;
+    migrate(&mut config);
+    Ok(config)
+}
+
+/// Meetings moved from Homebrew's whisper-server (GGML .bin) to the bundled transcribe-server (GGUF): the old
+/// defaults become the new ones. A path or model the user chose themselves is kept.
+fn migrate(c: &mut Config) {
+    if c.whisper_server_path == "/opt/homebrew/bin/whisper-server" {
+        c.whisper_server_path.clear();
+    }
+    if c.whisper_model == "ggml-large-v3-turbo.bin" {
+        c.whisper_model = crate::catalog::WHISPER_FILE.into();
+    }
 }
 
 /// `JSONEncoder` `[.prettyPrinted, .sortedKeys]` text of the config.
@@ -95,8 +108,13 @@ mod tests {
 
     /// The Swift app's default config, with the one product-name dictionary entry renamed for OpenFlow.
     fn swift_default_renamed() -> String {
-        include_str!("../testdata/swift/config_default.json")
-            .replace("JezFlow: jez flow, jazz flow, jazz flo", "OpenFlow: open flow, open flo")
+        migrated(&include_str!("../testdata/swift/config_default.json").replace("JezFlow: jez flow, jazz flow, jazz flo", "OpenFlow: open flow, open flo"))
+    }
+
+    /// Swift JSON as OpenFlow writes it back: the Homebrew whisper-server defaults become transcribe-server's.
+    fn migrated(json: &str) -> String {
+        json.replace(r#""whisperModel" : "ggml-large-v3-turbo.bin""#, r#""whisperModel" : "whisper-large-v3-turbo-Q8_0.gguf""#)
+            .replace(r#""whisperServerPath" : "\/opt\/homebrew\/bin\/whisper-server""#, r#""whisperServerPath" : """#)
     }
 
     /// OpenFlow-only keys (the Swift app ignores them); stripped before byte comparisons with Swift output.
@@ -122,11 +140,19 @@ mod tests {
         assert!((c.tap_threshold - 0.30000000000000004).abs() < 1e-18);
         assert!(c.memory.contains("</script>") && c.memory.contains('\u{1}'));
         assert_eq!(c.tones.get("empty").map(String::as_str), Some(""));
-        assert_eq!(without_openflow_keys(&to_json(&c).unwrap()), swift.trim_end_matches('\n'));
+        assert_eq!(without_openflow_keys(&to_json(&c).unwrap()), migrated(swift.trim_end_matches('\n')));
         let empty = include_str!("../testdata/swift/config_empty.json");
         let c = parse(empty.as_bytes()).unwrap();
         assert!(c.app_tones.is_empty() && c.dictionary.is_empty());
-        assert_eq!(without_openflow_keys(&to_json(&c).unwrap()), empty.trim_end_matches('\n'));
+        assert_eq!(without_openflow_keys(&to_json(&c).unwrap()), migrated(empty.trim_end_matches('\n')));
+    }
+
+    #[test]
+    fn custom_speech_server_is_kept() {
+        let c = parse(br#"{"whisperServerPath": "/usr/local/bin/my-server", "whisperModel": "mine.gguf"}"#).unwrap();
+        assert_eq!((c.whisper_server_path.as_str(), c.whisper_model.as_str()), ("/usr/local/bin/my-server", "mine.gguf"));
+        let c = parse(br#"{"whisperServerPath": "/opt/homebrew/bin/whisper-server", "whisperModel": "ggml-large-v3-turbo.bin"}"#).unwrap();
+        assert_eq!((c.whisper_server_path.as_str(), c.whisper_model.as_str()), ("", crate::catalog::WHISPER_FILE));
     }
 
     #[test]

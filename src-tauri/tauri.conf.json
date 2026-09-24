@@ -65,7 +65,8 @@
     },
     "category": "Productivity",
     "externalBin": [
-      "binaries/openflow-helper"
+      "binaries/openflow-helper",
+      "binaries/transcribe-server"
     ],
     "resources": {
       "../README.md": "README.md"

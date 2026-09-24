@@ -251,7 +251,7 @@ export function ModelsPage() {
               {ggufInfo(
                 w,
                 <span style={{ fontSize: 12, color: snap.whisperServerFound ? "var(--tertiary)" : "var(--orange)" }}>
-                  {snap.whisperServerFound ? "whisper-server found" : "whisper-server not found: run brew install whisper-cpp"}
+                  {snap.whisperServerFound ? "Speech server ready" : "Speech server missing: reinstall OpenFlow"}
                 </span>,
               )}
               {w.file in dl.progress ? (

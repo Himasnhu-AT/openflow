@@ -155,7 +155,7 @@ export interface Snapshot {
   catalog: CatalogModel[];
   whisperCatalog: CatalogModel;
   whisperServerFound: boolean;
-  /** `whisperCatalog.file` exists in models/ (it is a .bin, so it is not in installedModels). Optional: when
+  /** `whisperCatalog.file` exists in models/ (speech models are kept out of installedModels). Optional: when
    *  absent the UI falls back to `installedModels.includes(whisperCatalog.file)`. */
   whisperModelInstalled?: boolean;
   /** Recommended Ollama models (qwen3.5 2b/4b/9b). */

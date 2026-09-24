@@ -116,9 +116,12 @@ in `meetings/*.json` (transcript only, no audio) and can be exported as Markdown
 ## Engines: local, bigger local, or cloud
 
 - **Dictation**: Parakeet (live text and final transcript) + Qwen3.5 4B for cleanup, all local.
-- **Meetings, your side**: Parakeet. **Far side**: Whisper large v3 turbo through `whisper-server` (Homebrew
-  `whisper-cpp`; model from the Models page), started for the meeting and stopped after. Any language, and much better
-  than Parakeet on compressed call audio. Falls back to Parakeet when it isn't installed.
+- **Meetings, your side**: Parakeet. **Far side**: Whisper large v3 turbo (GGUF, 0.9 GB, from the Models page) on
+  the bundled `transcribe-server` ([transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) on Metal),
+  started for the meeting and stopped after. Any language, and much better than Parakeet on compressed call audio.
+  Falls back to Parakeet when the model isn't downloaded.
+- **Meeting guards**: Silero VAD skips audio with no voice, and speaker echo is dropped. Speaker names come from Zoom
+  (Accessibility) or Google Meet (the extension in `browser-extension/`).
 - **Meeting notes**: a bigger local model (Settings › Meetings › Notes model, e.g. Qwen3.5 9B) loaded only while the
   notes are written, so dictation keeps the fast 4B.
 - **Cloud (optional)**: Settings › Processing › *Use cloud models (Groq)* with an API key from console.groq.com sends
@@ -167,6 +170,6 @@ OPENFLOW_DATA_DIR=/tmp/openflow-test pnpm tauri dev         # run against a scra
 ```
 
 Layout: `src/` React UI, `src-tauri/` app shell and orchestrator, `crates/openflow-core` (rules, pipeline, data),
-`crates/openflow-engines` (Ollama, llama-server, Groq, whisper-server, speech helper client), `crates/openflow-platform` (macOS
+`crates/openflow-engines` (Ollama, llama-server, Groq, transcribe-server, speech helper client), `crates/openflow-platform` (macOS
 integration), `sidecar/openflow-helper` (Swift: Parakeet, SenseVoice, system audio tap, Contacts/Calendar).
 See `docs/ARCHITECTURE.md`. The original Swift app is kept locally in `dep/` (not tracked) as the reference.

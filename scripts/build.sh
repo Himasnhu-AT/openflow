@@ -14,6 +14,10 @@ HELPER_BUILD=sidecar/openflow-helper/.build/release
 mkdir -p src-tauri/binaries
 cp "$HELPER_BUILD/openflow-helper" "src-tauri/binaries/openflow-helper-$TRIPLE"
 
+# 1b. Meeting speech server (transcribe.cpp on Metal). The first build fetches the pinned source and compiles ggml.
+sidecar/transcribe-server/build.sh   # incremental after the first build
+cp sidecar/transcribe-server/transcribe-server "src-tauri/binaries/transcribe-server-$TRIPLE"
+
 # 2. Tauri app (frontend + Rust). Produces src-tauri/target or target/release/bundle/macos/OpenFlow.app.
 pnpm install --frozen-lockfile >/dev/null
 pnpm tauri build --bundles app

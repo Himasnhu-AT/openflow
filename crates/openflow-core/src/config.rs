@@ -70,7 +70,9 @@ pub struct Config {
     pub cloud_asr_model: String,
     #[serde(rename = "cloudLLMModel")]
     pub cloud_llm_model: String,
+    /// Speech server for meetings; "" = the bundled transcribe-server. (Was Homebrew's whisper-server.)
     pub whisper_server_path: String,
+    /// GGUF in models/ that the speech server loads.
     pub whisper_model: String,
     /// "whisper" or "parakeet".
     pub meeting_far_engine: String,
@@ -174,8 +176,9 @@ impl Default for Config {
             cloud_api_key: String::new(),
             cloud_asr_model: "whisper-large-v3-turbo".into(),
             cloud_llm_model: "qwen/qwen3.8-27b".into(),
-            whisper_server_path: "/opt/homebrew/bin/whisper-server".into(),
-            whisper_model: "ggml-large-v3-turbo.bin".into(),
+            // "" = the transcribe-server bundled with the app.
+            whisper_server_path: String::new(),
+            whisper_model: crate::catalog::WHISPER_FILE.into(),
             meeting_far_engine: "whisper".into(),
             notes_model: "Qwen3.5-9B-Q4_K_M.gguf".into(),
             llm_backend: "ollama".into(),
