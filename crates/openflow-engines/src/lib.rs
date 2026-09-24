@@ -5,6 +5,7 @@ pub mod downloader;
 pub mod live;
 pub mod meeting_engine;
 pub mod notes;
+pub mod ollama;
 pub mod polisher;
 pub mod prompts;
 pub mod sidecar;

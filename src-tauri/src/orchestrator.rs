@@ -13,6 +13,7 @@ use openflow_engines::cloud::{self, Cloud, Scope};
 use openflow_engines::downloader::{DownloadEvent, Downloader};
 use openflow_engines::live::LiveTranscriber;
 use openflow_engines::meeting_engine::MeetingEngine;
+use openflow_engines::ollama::{self, Ollama, OllamaModel};
 use openflow_engines::polisher::Polisher;
 use openflow_engines::sidecar::{Sidecar, SidecarAsr, SidecarNames, SidecarSystemAudio};
 use openflow_engines::whisper_server::WhisperServer;
@@ -48,6 +49,11 @@ pub enum Msg {
     InputDevices(oneshot::Sender<Vec<InputDevice>>),
     RunningApps(oneshot::Sender<Vec<AppInfo>>),
     AppInfo(String, oneshot::Sender<Option<AppInfo>>),
+    /// Start Ollama (Ollama.app or `ollama serve`); replies with an error message on failure.
+    OllamaStart(oneshot::Sender<Result<(), String>>),
+    /// `ollama pull`; progress goes out on the `download` event with `file` = the tag.
+    OllamaPull(String),
+    OllamaCancelPull(String),
     /// Internal: engines finished loading / failed.
     Render,
     Quit,
@@ -123,6 +129,10 @@ struct Inner {
     downloader: Downloader,
     /// Bumped on every engine (re)start so a slow, superseded start doesn't install itself.
     polisher_generation: Mutex<u64>,
+    /// `ollama serve` when we started it ourselves (not when Ollama.app runs it); stopped on quit.
+    ollama_child: Mutex<Option<tokio::process::Child>>,
+    /// Running pulls by tag, with their cancel flags.
+    pulls: Mutex<std::collections::HashMap<String, Arc<AtomicBool>>>,
 }
 
 type Orc = Arc<Inner>;
@@ -183,6 +193,8 @@ pub fn spawn(app: AppHandle, shared: SharedRef, handle: Handle, mut rx: mpsc::Un
             detector,
             downloader,
             polisher_generation: Mutex::new(0),
+            ollama_child: Mutex::new(None),
+            pulls: Mutex::new(Default::default()),
         });
         let _ = ORC.set(Arc::clone(&orc));
         launch(&orc);
@@ -313,6 +325,8 @@ async fn load_transcriber(orc: &Orc) {
     }
 }
 
+/// Starts the configured engine and warms it up. With Ollama as the engine and a GGUF installed, llama.cpp
+/// is the fallback when Ollama can't start (not installed, model not pulled, server error).
 async fn start_polisher(orc: &Orc) {
     let generation = {
         let mut g = orc.polisher_generation.lock().unwrap();
@@ -322,41 +336,38 @@ async fn start_polisher(orc: &Orc) {
     if let Some(p) = orc.polisher.lock().unwrap().take() {
         p.stop();
     }
-    orc.shared.runtime().polish_ready = false;
+    {
+        let mut rt = orc.shared.runtime();
+        rt.polish_ready = false;
+        rt.active_backend = None;
+    }
     render(orc);
     let config = orc.shared.config();
-    let p = Arc::new(Polisher::new(config.clone(), Scope::Dictation));
-    let started = async {
-        p.start().await?;
-        if !p.wait_until_ready(Duration::from_secs(120)).await {
-            anyhow::bail!("llama-server didn't become ready");
+    let mut started = launch_polisher(orc, config.clone()).await;
+    if let Err(e) = &started {
+        if config.uses_ollama() && llamacpp_available(&config) {
+            tracing::error!("Ollama unavailable ({e:#}); falling back to llama.cpp");
+            let mut fallback = config.clone();
+            fallback.llm_backend = "llamacpp".into();
+            started = launch_polisher(orc, fallback).await;
         }
-        let examples = orc.shared.store().all_corrections(3);
-        use openflow_core::traits::PolishBackend;
-        let _ = p
-            .polish(
-                "warm up",
-                &config.default_tones.tone,
-                &config.tones,
-                &config.dictionary,
-                &config.memory,
-                &examples,
-                None,
-                None,
-            )
-            .await;
-        anyhow::Ok(())
     }
-    .await;
     if *orc.polisher_generation.lock().unwrap() != generation {
-        p.stop();
+        if let Ok(p) = started {
+            p.stop();
+        }
         return;
     }
     match started {
-        Ok(()) => {
-            *orc.polisher.lock().unwrap() = Some(Arc::clone(&p));
-            orc.shared.runtime().polish_ready = true;
-            tracing::info!("Engines ready");
+        Ok(p) => {
+            let backend = if p.config().uses_ollama() { "ollama" } else { "llamacpp" };
+            *orc.polisher.lock().unwrap() = Some(p);
+            {
+                let mut rt = orc.shared.runtime();
+                rt.polish_ready = true;
+                rt.active_backend = Some(backend.into());
+            }
+            tracing::info!("Engines ready ({backend})");
             render(orc);
             // Any finished meeting still without notes gets them now, one at a time (oldest first).
             let pending: Vec<Uuid> = orc
@@ -375,8 +386,45 @@ async fn start_polisher(orc: &Orc) {
         Err(e) => {
             // Dictation still works without the polish model; everything is pasted verbatim.
             tracing::error!("Polish model unavailable, verbatim only: {e:#}");
-            p.stop();
             render(orc);
+        }
+    }
+}
+
+/// llama-server and the configured GGUF are both on disk.
+fn llamacpp_available(config: &Config) -> bool {
+    std::path::Path::new(&config.llama_server_path).exists() && config.model_path().exists()
+}
+
+async fn launch_polisher(orc: &Orc, config: Config) -> anyhow::Result<Arc<Polisher>> {
+    let p = Arc::new(Polisher::new(config.clone(), Scope::Dictation));
+    let result = async {
+        p.start().await?;
+        if !p.wait_until_ready(Duration::from_secs(120)).await {
+            anyhow::bail!("the polish engine didn't become ready");
+        }
+        let examples = orc.shared.store().all_corrections(3);
+        use openflow_core::traits::PolishBackend;
+        // Loads the model (Ollama) and fills the prompt cache.
+        p.polish(
+            "warm up",
+            &config.default_tones.tone,
+            &config.tones,
+            &config.dictionary,
+            &config.memory,
+            &examples,
+            None,
+            None,
+        )
+        .await?;
+        anyhow::Ok(())
+    }
+    .await;
+    match result {
+        Ok(()) => Ok(p),
+        Err(e) => {
+            p.stop();
+            Err(e)
         }
     }
 }
@@ -442,6 +490,34 @@ async fn handle_msg(orc: &Orc, msg: Msg) {
                 let _ = tx.send(tokio::task::spawn_blocking(move || a.info(&bundle)).await.ok().flatten());
             });
         }
+        Msg::OllamaStart(tx) => {
+            let o = Arc::clone(orc);
+            tauri::async_runtime::spawn(async move {
+                let config = o.shared.config();
+                let result = Ollama::new(&config.ollama_url).ensure_running(&config.ollama_path).await;
+                let reply = match result {
+                    Ok(child) => {
+                        if child.is_some() {
+                            *o.ollama_child.lock().unwrap() = child;
+                        }
+                        // Ollama is the engine and just came up: load the model now.
+                        if config.uses_ollama() && !o.shared.runtime().polish_ready {
+                            let o2 = Arc::clone(&o);
+                            tauri::async_runtime::spawn(async move { start_polisher(&o2).await });
+                        }
+                        Ok(())
+                    }
+                    Err(e) => Err(format!("{e:#}")),
+                };
+                let _ = tx.send(reply);
+            });
+        }
+        Msg::OllamaPull(tag) => ollama_pull(orc, tag),
+        Msg::OllamaCancelPull(tag) => {
+            if let Some(flag) = orc.pulls.lock().unwrap().get(&tag) {
+                flag.store(true, Ordering::SeqCst);
+            }
+        }
         Msg::Render => render(orc),
         Msg::Quit => orc.app.exit(0), // RunEvent::Exit then calls shutdown_now
     }
@@ -449,12 +525,22 @@ async fn handle_msg(orc: &Orc, msg: Msg) {
 
 fn config_changed(orc: &Orc, previous: &Config) {
     let now = orc.shared.config();
-    if now.model != previous.model || now.llama_server_path != previous.llama_server_path || now.llama_port != previous.llama_port {
+    let engine_changed = now.llm_backend != previous.llm_backend
+        || now.ollama_url != previous.ollama_url
+        || now.ollama_model != previous.ollama_model
+        || now.ollama_path != previous.ollama_path
+        || now.model != previous.model
+        || now.llama_server_path != previous.llama_server_path
+        || now.llama_port != previous.llama_port;
+    if engine_changed {
         let o = Arc::clone(orc);
         tauri::async_runtime::spawn(async move { start_polisher(&o).await });
     } else if let Some(p) = orc.polisher.lock().unwrap().as_ref() {
-        // Tones, dictionary, memory and cloud settings are read per request; hand the polisher the new config.
-        p.set_config(now.clone());
+        // Tones, dictionary, memory and cloud settings are read per request; hand the polisher the new config,
+        // keeping the engine it actually runs on (llama.cpp when it is Ollama's fallback).
+        let mut cfg = now.clone();
+        cfg.llm_backend = p.config().llm_backend;
+        p.set_config(cfg);
     }
     if now.asr_version != previous.asr_version {
         let o = Arc::clone(orc);
@@ -486,6 +572,74 @@ fn shutdown(orc: &Orc) {
     }
     orc.detector.stop();
     orc.sidecar.shutdown();
+    // Dropping the child kills `ollama serve` if we started it (kill_on_drop); Ollama.app keeps running.
+    orc.ollama_child.lock().unwrap().take();
+}
+
+/// Ollama server status for the Models page.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OllamaStatus {
+    pub installed: bool,
+    pub running: bool,
+    pub version: Option<String>,
+    pub url: String,
+    pub models: Vec<OllamaModel>,
+    pub error: Option<String>,
+}
+
+pub async fn ollama_status(config: &Config) -> OllamaStatus {
+    let client = Ollama::new(&config.ollama_url);
+    let installed = ollama::app_installed() || ollama::find_binary(&config.ollama_path).is_some();
+    let (version, error) = match client.version().await {
+        Ok(v) => (Some(v), None),
+        Err(e) => (None, Some(format!("{e:#}"))),
+    };
+    let models = if version.is_some() { client.models().await.unwrap_or_default() } else { vec![] };
+    OllamaStatus { installed, running: version.is_some(), version, url: client.url().to_string(), models, error }
+}
+
+/// Pulls a model, reporting progress like a GGUF download. Starts Ollama first when it isn't running.
+fn ollama_pull(orc: &Orc, tag: String) {
+    let cancel = Arc::new(AtomicBool::new(false));
+    {
+        let mut pulls = orc.pulls.lock().unwrap();
+        if pulls.contains_key(&tag) {
+            return;
+        }
+        pulls.insert(tag.clone(), Arc::clone(&cancel));
+    }
+    let o = Arc::clone(orc);
+    tauri::async_runtime::spawn(async move {
+        let emit = |progress: Option<f64>, done: bool, error: Option<String>| {
+            let _ = o.app.emit("download", json!({ "file": tag, "progress": progress, "done": done, "error": error }));
+        };
+        emit(Some(0.0), false, None);
+        let config = o.shared.config();
+        let client = Ollama::new(&config.ollama_url);
+        let result = async {
+            if let Some(child) = client.ensure_running(&config.ollama_path).await? {
+                *o.ollama_child.lock().unwrap() = Some(child);
+            }
+            client.pull(&tag, &|p| emit(p, false, None), Arc::clone(&cancel)).await
+        }
+        .await;
+        o.pulls.lock().unwrap().remove(&tag);
+        match result {
+            Ok(()) => {
+                tracing::info!("Pulled {tag}");
+                emit(Some(1.0), true, None);
+                let config = o.shared.config();
+                if config.uses_ollama() && config.ollama_model == tag && !o.shared.runtime().polish_ready {
+                    start_polisher(&o).await;
+                }
+            }
+            // A cancelled pull reports nothing, like a cancelled GGUF download.
+            Err(_) if cancel.load(Ordering::SeqCst) => emit(None, true, None),
+            Err(e) => emit(None, true, Some(format!("{e:#}"))),
+        }
+        o.shared.emit_snapshot();
+    });
 }
 
 // ---------------------------------------------------------------------------------------------- rendering
@@ -977,12 +1131,28 @@ async fn summarize(orc: &Orc, id: Uuid) {
         return;
     }
     orc.shared.emit_snapshot();
-    let config = orc.shared.config();
-    // Notes model: the cloud when on; otherwise a bigger local GGUF loaded just for this, falling back to the
-    // polish model.
+    let mut config = orc.shared.config();
+    // Notes are written by the engine that actually loaded (llama.cpp when it is Ollama's fallback).
+    let active = orc.shared.runtime().active_backend.clone();
+    if let Some(b) = active {
+        config.llm_backend = b;
+    }
+    // Notes model: the cloud when on; otherwise the bigger notes model (Ollama loads it on demand; llama.cpp
+    // gets a second server just for this), falling back to the polish model.
     let mut writer = Arc::new(Polisher::new(config.clone(), Scope::Meetings));
     let mut transient: Option<Arc<Polisher>> = None;
-    if !cloud::routes(&config, Scope::Meetings, false)
+    let cloud_notes = cloud::routes(&config, Scope::Meetings, false);
+    if !cloud_notes && config.uses_ollama() && !config.ollama_notes_model.is_empty() {
+        let ollama = Ollama::new(&config.ollama_url);
+        if ollama.has_model(&config.ollama_notes_model).await.unwrap_or(false) {
+            let mut cfg = config.clone();
+            cfg.ollama_model = config.ollama_notes_model.clone();
+            writer = Arc::new(Polisher::new(cfg, Scope::Meetings));
+        } else {
+            tracing::info!("Notes model {} not pulled; using {}", config.ollama_notes_model, config.ollama_model);
+        }
+    } else if !cloud_notes
+        && !config.uses_ollama()
         && !config.notes_model.is_empty()
         && config.notes_model != config.model
         && paths::models_dir().join(&config.notes_model).exists()

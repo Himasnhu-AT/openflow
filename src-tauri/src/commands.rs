@@ -199,3 +199,23 @@ pub fn log_frontend(window: String, message: String) {
 pub fn initial_page(state: State<'_, AppState>) -> Option<String> {
     state.shared.runtime().initial_page.take()
 }
+
+#[tauri::command]
+pub async fn ollama_status(state: State<'_, AppState>) -> CmdResult<crate::orchestrator::OllamaStatus> {
+    Ok(crate::orchestrator::ollama_status(&state.shared.config()).await)
+}
+
+#[tauri::command]
+pub async fn ollama_start(state: State<'_, AppState>) -> CmdResult<()> {
+    state.orchestrator.ask(Msg::OllamaStart).await.unwrap_or_else(|| Err("OpenFlow is shutting down".into()))
+}
+
+#[tauri::command]
+pub fn ollama_pull(state: State<'_, AppState>, model: String) {
+    state.orchestrator.send(Msg::OllamaPull(model));
+}
+
+#[tauri::command]
+pub fn ollama_cancel_pull(state: State<'_, AppState>, model: String) {
+    state.orchestrator.send(Msg::OllamaCancelPull(model));
+}

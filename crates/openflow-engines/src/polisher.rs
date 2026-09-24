@@ -1,7 +1,8 @@
-//! OWNER: team C (engines). llama-server child process + PolishBackend impl (Polisher.swift).
+//! PolishBackend impl (Polisher.swift): cleans up transcripts with a local LLM.
 //!
-//! Runs llama-server as a child process (Metal, fully local) and asks it to clean up transcripts. When the
-//! cloud applies (see `Cloud::new`), completions go to Groq first and fall back to the local server.
+//! The engine is Ollama by default (`config.llm_backend`), or llama-server run as a child process with a GGUF
+//! from models/. Prompts are identical for both. When the cloud applies (see `Cloud::new`), completions go
+//! to Groq first and fall back to the local engine.
 
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -20,6 +21,7 @@ use tokio::process::{Child, Command};
 
 use crate::cloud::{cut_think, Cloud, Scope};
 use crate::notes::Completer;
+use crate::ollama::Ollama;
 use crate::prompts::{self, trim_ws_nl};
 
 /// Arguments after `llama-server`, exactly as Polisher.swift passes them.
@@ -173,8 +175,9 @@ pub fn local_body(system: &str, user: &str, max_tokens: usize, stream: bool) -> 
 }
 
 pub struct Polisher {
-    /// Swappable so settings edits (cloud, learned signals, memory) apply without restarting llama-server.
+    /// Swappable so settings edits (cloud, learned signals, memory) apply without restarting the engine.
     config: std::sync::RwLock<Config>,
+    ollama: std::sync::RwLock<Ollama>,
     scope: Scope,
     current_is_long: AtomicBool,
     child: Mutex<Option<Child>>,
@@ -192,6 +195,7 @@ impl Polisher {
             .build()
             .unwrap_or_default();
         Self {
+            ollama: std::sync::RwLock::new(Ollama::new(&config.ollama_url)),
             config: std::sync::RwLock::new(config),
             scope,
             current_is_long: AtomicBool::new(false),
@@ -209,7 +213,29 @@ impl Polisher {
 
     /// Replaces the settings used per request. The server keeps running (model and port changes need a restart).
     pub fn set_config(&self, config: Config) {
+        if config.ollama_url != self.config.read().unwrap().ollama_url {
+            *self.ollama.write().unwrap() = Ollama::new(&config.ollama_url);
+        }
         *self.config.write().unwrap() = config;
+    }
+
+    fn ollama(&self) -> Option<(Ollama, String)> {
+        let c = self.config.read().unwrap();
+        c.uses_ollama().then(|| (self.ollama.read().unwrap().clone(), c.ollama_model.clone()))
+    }
+
+    /// How long Ollama keeps the model loaded after a call: long for dictation (every press should be
+    /// instant), short for the bigger meeting-notes model.
+    fn keep_alive(&self) -> &'static str {
+        match self.scope {
+            Scope::Dictation => "30m",
+            Scope::Meetings => "5m",
+        }
+    }
+
+    fn record(&self, s: String) {
+        tracing::info!(target: "polish", "LLM: {s}");
+        *self.last_timings.lock().unwrap() = s;
     }
 
     fn base_url(&self) -> String {
@@ -230,10 +256,22 @@ impl Polisher {
         self.last_timings.lock().unwrap().clone()
     }
 
-    /// Kills any server left on our port (a previous run or model, so the new model always wins), then spawns
-    /// llama-server. Does not wait for it to load; see `wait_until_ready`.
+    /// Ollama: makes sure the server runs (starting it if needed) and the model is pulled.
+    /// llama.cpp: kills any server left on our port (a previous run or model, so the new model always wins),
+    /// then spawns llama-server. Does not wait for it to load; see `wait_until_ready`.
     pub async fn start(&self) -> Result<()> {
         let config = self.config();
+        if let Some((ollama, model)) = self.ollama() {
+            if let Some(child) = ollama.ensure_running(&config.ollama_path).await? {
+                if let Some(old) = self.child.lock().unwrap().replace(child) {
+                    terminate(old);
+                }
+            }
+            if !ollama.has_model(&model).await? {
+                bail!("Ollama model {model} isn't downloaded. Pull it on the Models page, or run `ollama pull {model}`.");
+            }
+            return Ok(());
+        }
         pkill(&format!("llama-server.*--port {}", config.llama_port)).await;
         tokio::time::sleep(Duration::from_millis(300)).await;
         let model = config.model_path();
@@ -260,8 +298,11 @@ impl Polisher {
         }
     }
 
-    /// `GET /health` with a 1 s timeout, expecting 200.
+    /// Ollama: `/api/version` answers. llama.cpp: `GET /health` with a 1 s timeout, expecting 200.
     pub async fn is_healthy(&self) -> bool {
+        if let Some((ollama, _)) = self.ollama() {
+            return ollama.is_running().await;
+        }
         match self.http.get(format!("{}/health", self.base_url())).timeout(Duration::from_secs(1)).send().await {
             Ok(r) => r.status().as_u16() == 200,
             Err(_) => false,
@@ -282,6 +323,13 @@ impl Polisher {
 
     /// Streams tokens as they are generated (SSE) so the app can type them straight into the field.
     pub async fn stream(&self, system: &str, user: &str, max_tokens: usize, on_partial: &(dyn for<'s> Fn(&'s str) + Send + Sync)) -> Result<String> {
+        if let Some((ollama, model)) = self.ollama() {
+            let (text, t) = ollama
+                .chat(&model, system, user, max_tokens, self.keep_alive(), Duration::from_secs(120), Some(on_partial))
+                .await?;
+            self.record(t.describe());
+            return Ok(text);
+        }
         let resp = self
             .streaming
             .post(format!("{}/v1/chat/completions", self.base_url()))
@@ -349,6 +397,11 @@ impl Polisher {
                 Ok(t) => return Ok(t),
                 Err(e) => tracing::error!(target: "polish", "Cloud model failed, using local: {e}"),
             }
+        }
+        if let Some((ollama, model)) = self.ollama() {
+            let (text, t) = ollama.chat(&model, system, user, max_tokens, self.keep_alive(), timeout, None).await?;
+            self.record(t.describe());
+            return Ok(text);
         }
         let resp = self
             .http

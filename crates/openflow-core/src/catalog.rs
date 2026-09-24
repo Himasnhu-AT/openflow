@@ -95,3 +95,24 @@ mod tests {
         assert_eq!(installed_models(), ["A.gguf", "b.gguf"]);
     }
 }
+
+/// A model offered for `ollama pull` (the default engine). Tags and sizes from ollama.com/library/qwen3.5.
+#[derive(Debug, Clone, Serialize)]
+pub struct OllamaCatalogModel {
+    pub name: String,
+    pub label: String,
+    pub gb: f64,
+    pub note: String,
+}
+
+/// Recommended Ollama models, in display order.
+pub fn ollama_models() -> Vec<OllamaCatalogModel> {
+    [
+        ("qwen3.5:2b", "Qwen3.5 2B", 2.7, "Fastest"),
+        ("qwen3.5:4b", "Qwen3.5 4B", 3.4, "Default. Best balance of speed and quality"),
+        ("qwen3.5:9b", "Qwen3.5 9B", 6.6, "Most accurate; good for meeting notes"),
+    ]
+    .into_iter()
+    .map(|(name, label, gb, note)| OllamaCatalogModel { name: name.into(), label: label.into(), gb, note: note.into() })
+    .collect()
+}

@@ -85,7 +85,7 @@ async fn serve(replies: Vec<Reply>) -> (u16, Arc<Mutex<Vec<Req>>>) {
 }
 
 fn local_config(port: u16) -> Config {
-    Config { llama_port: port, cloud_enabled: false, ..Config::default() }
+    Config { llama_port: port, cloud_enabled: false, llm_backend: "llamacpp".into(), ..Config::default() }
 }
 
 #[tokio::test]
@@ -156,6 +156,7 @@ async fn polish_streams_partials_and_falls_back_to_raw() {
 
 fn cloud_config() -> Config {
     Config {
+        llm_backend: "llamacpp".into(),
         cloud_enabled: true,
         cloud_api_key: " gsk_test ".into(),
         cloud_dictation: "all".into(),
@@ -263,4 +264,73 @@ async fn downloader_reports_http_errors() {
     let e = tokio::time::timeout(Duration::from_secs(10), rx.recv()).await.unwrap().unwrap();
     assert_eq!(e.error.as_deref(), Some("Download failed: HTTP 404"));
     assert!(!dir.path().join("x.bin").exists());
+}
+
+// ------------------------------------------------------------------------------------------------ Ollama
+
+fn ollama_config(port: u16) -> Config {
+    Config {
+        cloud_enabled: false,
+        llm_backend: "ollama".into(),
+        ollama_url: format!("http://127.0.0.1:{port}"),
+        ollama_model: "qwen3.5:4b".into(),
+        ..Config::default()
+    }
+}
+
+#[tokio::test]
+async fn ollama_complete_sends_native_chat_without_thinking() {
+    let body = r#"{"model":"qwen3.5:4b","message":{"role":"assistant","content":"see you thursday"},"done":true,"prompt_eval_count":900,"prompt_eval_duration":80000000,"eval_count":4,"eval_duration":60000000}"#;
+    let (port, seen) = serve(vec![reply(200, body)]).await;
+    let p = Polisher::new(ollama_config(port), Scope::Dictation);
+    let out = p.complete("SYS", "USER", 1024, Duration::from_secs(5)).await.unwrap();
+    assert_eq!(out, "see you thursday");
+    let req = seen.lock().unwrap()[0].clone();
+    assert!(req.head.starts_with("POST /api/chat "));
+    let v: serde_json::Value = serde_json::from_slice(&req.body).unwrap();
+    assert_eq!(v["model"], "qwen3.5:4b");
+    assert_eq!(v["think"], false);
+    assert_eq!(v["stream"], false);
+    assert_eq!(v["keep_alive"], "30m");
+    assert_eq!(v["messages"][0]["content"], "SYS");
+    assert!(p.last_timings().contains("prompt 900 tok"));
+}
+
+#[tokio::test]
+async fn ollama_polish_streams_ndjson_partials() {
+    let lines = [
+        r#"{"message":{"role":"assistant","content":"thursday "},"done":false}"#,
+        r#"{"message":{"role":"assistant","content":"works"},"done":false}"#,
+        r#"{"message":{"role":"assistant","content":""},"done":true,"eval_count":2}"#,
+    ];
+    let parts = lines.iter().map(|l| format!("{l}\n").into_bytes()).collect();
+    let (port, _) = serve(vec![Reply { status: 200, content_type: "application/x-ndjson", parts }]).await;
+    let p = Polisher::new(ollama_config(port), Scope::Dictation);
+    let partials = Mutex::new(Vec::new());
+    let cb = |s: &str| partials.lock().unwrap().push(s.to_string());
+    let tones = Config::default().tones;
+    let out = p
+        .polish("um thursday works", "casual", &tones, &[], "", &Examples::new(), None, Some(&cb))
+        .await
+        .unwrap();
+    assert_eq!(out, "thursday works");
+    assert_eq!(partials.lock().unwrap().last().unwrap(), "thursday works");
+}
+
+#[tokio::test]
+async fn ollama_start_requires_the_model_to_be_pulled() {
+    let tags = r#"{"models":[{"name":"qwen3.5:9b","size":6600000000}]}"#;
+    // /api/version, then /api/tags.
+    let (port, _) = serve(vec![reply(200, r#"{"version":"0.34.1"}"#), reply(200, tags)]).await;
+    let p = Polisher::new(ollama_config(port), Scope::Dictation);
+    let err = p.start().await.unwrap_err().to_string();
+    assert!(err.contains("qwen3.5:4b isn't downloaded"), "{err}");
+}
+
+#[tokio::test]
+async fn ollama_model_errors_surface() {
+    let (port, _) = serve(vec![reply(404, r#"{"error":"model 'qwen3.5:4b' not found"}"#)]).await;
+    let p = Polisher::new(ollama_config(port), Scope::Dictation);
+    let err = p.complete("S", "U", 10, Duration::from_secs(5)).await.unwrap_err().to_string();
+    assert!(err.contains("not found"), "{err}");
 }

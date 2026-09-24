@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use openflow_core::catalog::{self, CatalogModel};
+use openflow_core::catalog::{self, CatalogModel, OllamaCatalogModel};
 use openflow_core::model::{Dictation, Meeting, Stats};
 use openflow_core::store::Store;
 use openflow_core::{paths, Config};
@@ -50,6 +50,8 @@ pub struct Runtime {
     pub tone_override: Option<String>,
     /// `--settings <Page>`: handed to the main window once it asks.
     pub initial_page: Option<String>,
+    /// The polish engine that actually loaded ("ollama" or "llamacpp"); None = verbatim only.
+    pub active_backend: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -73,6 +75,8 @@ pub struct Snapshot {
     pub whisper_catalog: CatalogModel,
     pub whisper_server_found: bool,
     pub whisper_model_installed: bool,
+    pub ollama_catalog: Vec<OllamaCatalogModel>,
+    pub active_backend: Option<String>,
     pub data_dir: String,
 }
 
@@ -146,6 +150,8 @@ impl Shared {
             whisper_catalog: catalog::whisper(),
             whisper_server_found,
             whisper_model_installed: paths::models_dir().join(&config.whisper_model).exists(),
+            ollama_catalog: catalog::ollama_models(),
+            active_backend: rt.active_backend.clone(),
             data_dir: paths::data_dir().display().to_string(),
             config,
         }

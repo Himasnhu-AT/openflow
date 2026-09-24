@@ -291,7 +291,7 @@ async fn polishtest(raw: &str) -> bool {
     let history = history();
     let polisher = Polisher::new(config.clone(), Scope::Dictation);
     if !polisher.is_healthy().await {
-        println!("polishtest: llama-server not running");
+        println!("polishtest: {} not running", engine_name(&config));
         return false;
     }
     let mut examples = Examples::new();
@@ -382,9 +382,9 @@ async fn mictest(args: &[String]) -> bool {
 /// Runs the meeting notes step on a sample transcript against the running llama-server.
 async fn notestest() -> bool {
     let Some(config) = load_config() else { return false };
-    let polisher = Polisher::new(config, Scope::Meetings);
+    let polisher = Polisher::new(config.clone(), Scope::Meetings);
     if !polisher.is_healthy().await {
-        println!("llama-server not running");
+        println!("{} not running", engine_name(&config));
         return false;
     }
     let transcript = "[0:03] Them: thanks everyone for joining two decisions today first we ship the pricing page on thursday second alex owns the instagram reel and will send a draft by friday\n[0:15] You: sounds good i will review the draft on friday morning and i can also book the venue for the launch party by wednesday\n[0:24] Them: great and taylor can you send the investor update out on thursday after the pricing page is live\n[0:31] You: yes i will send it thursday afternoon";
@@ -426,7 +426,7 @@ async fn compare(n: usize) -> bool {
     local_cfg.cloud_enabled = false;
     let local = Polisher::new(local_cfg.clone(), Scope::Dictation);
     if !local.is_healthy().await {
-        println!("compare: llama-server not running");
+        println!("compare: {} not running", engine_name(&local_cfg));
         return false;
     }
     let cloud_polisher = Polisher::new(config.clone(), Scope::Dictation);
@@ -600,4 +600,12 @@ async fn livetest(args: &[String], path: &str) -> bool {
         t2.duration_since(t1).as_millis()
     );
     !raw.is_empty()
+}
+
+fn engine_name(config: &Config) -> String {
+    if config.uses_ollama() {
+        format!("Ollama ({} at {})", config.ollama_model, config.ollama_url)
+    } else {
+        "llama-server".into()
+    }
 }

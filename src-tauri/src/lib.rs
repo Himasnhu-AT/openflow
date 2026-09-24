@@ -120,6 +120,10 @@ pub fn run() {
             commands::overlay_state,
             commands::log_frontend,
             commands::initial_page,
+            commands::ollama_status,
+            commands::ollama_start,
+            commands::ollama_pull,
+            commands::ollama_cancel_pull,
         ])
         .setup(move |app| {
             let handle_app = app.handle().clone();
