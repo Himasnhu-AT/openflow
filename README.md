@@ -6,7 +6,7 @@ OpenFlow is voice dictation and meeting notes that run entirely on your own hard
 filler words gone, grammar fixed, the tone matched to the app you're in — a casual text in Messages, a proper
 email in Mail, exactly-as-spoken in your terminal. No account, no subscription, no audio sent anywhere.
 
-- **Private by design.** Speech recognition (NVIDIA Parakeet) and cleanup (Qwen3.5 via llama.cpp) run on your Mac.
+- **Private by design.** Speech recognition (NVIDIA Parakeet) and cleanup (Qwen3.5 through Ollama) run on your Mac.
   Cloud models are strictly opt-in, with your own key, and fall back to local on any failure.
 - **Fast enough to feel instant.** Words appear while you're still talking; a 4 s clip transcribes in ~70 ms on
   Apple Silicon, and the final text is pasted the moment you release.
@@ -24,7 +24,7 @@ macOS (Apple Silicon) today; Windows and Linux are on the way — the platform l
 
 1. **Hotkey** – a global event tap catches ⌘; (hold to dictate, quick tap to toggle, Esc cancels).
 2. **Transcribe** – NVIDIA Parakeet TDT 0.6B on CoreML via [FluidAudio](https://github.com/FluidInference/FluidAudio). Models download once (~600 MB) into `~/Library/Application Support/FluidAudio`.
-3. **Polish** – a local `llama-server` (Homebrew `llama.cpp`, Metal) running Qwen3.5-4B removes filler words,
+3. **Polish** – Qwen3.5 4B through a local [Ollama](https://ollama.com) (or `llama-server` from llama.cpp) removes filler words,
    fixes grammar and applies the tone for the app you're in. "Verbatim" tone skips this step.
 4. **Paste** – text goes on the clipboard, ⌘V is sent to the frontmost app, the old clipboard is restored.
 
@@ -32,7 +32,9 @@ macOS (Apple Silicon) today; Windows and Linux are on the way — the platform l
 
 - Apple Silicon, macOS 15+. Built with Rust (stable), Node + pnpm, and the Swift command line tools for the
   speech helper; Xcode is not needed.
-- `brew install llama.cpp`
+- [Ollama](https://ollama.com/download) (`brew install ollama` works too). OpenFlow starts it when it isn't running and
+  pulls `qwen3.5:4b` from the Models page. Alternative engine: `brew install llama.cpp` with a GGUF in the models folder;
+  when Ollama is the engine but unavailable, an installed GGUF is used as the fallback.
 - A GGUF model in `~/Library/Application Support/OpenFlow/models/` (default `Qwen3.5-4B-Q4_K_M.gguf`).
 
 ## Build & install
@@ -53,8 +55,9 @@ OpenFlow is a normal Dock app with a menu bar icon as well. The window opens at 
 launch turns that off for login starts); clicking the Dock icon or the menu bar icon → **Open OpenFlow…** brings it back:
 
 - **General** – engine status, hotkey reference, tap threshold, Parakeet v2/v3, launch at login.
-- **Models** – pick the active polish model, download Qwen3.5 2B / 4B / 9B, or drop any `.gguf` into the models folder.
-  Switching restarts the local `llama-server`.
+- **Models** – choose the engine (Ollama, the default, or llama.cpp). For Ollama, pull Qwen3.5 2B / 4B / 9B or use any
+  local model you already have (Ollama cloud models are never used). For llama.cpp, download a GGUF or drop any `.gguf`
+  into the models folder. Switching restarts the engine.
 - **Tones** – edit the instruction behind each tone or add your own. An empty instruction means verbatim (no model call).
 - **App Tones** – per-app tone and alternate tone (⌘⇧;). Pick from running apps or type a bundle id.
 - **Dictionary** – names and jargon, one per line as `Term` or `Term: sound-alike, sound-alike`
@@ -84,8 +87,9 @@ replacing the live text as it goes, so the first polished words show up ~0.4 s a
 
 What the polish step costs on an M4 (4B model, Q4_K_M): ~26 tokens/s generation, ~250 tokens/s prompt processing.
 Three things keep it small:
-- **Prompt caching.** Qwen3.5 is a hybrid (linear-attention) model, so llama-server can only resume from a checkpoint
-  at the end of the system prompt. The system prompt is therefore byte-identical across dictations (rules, all tones,
+- **Prompt caching.** Ollama and llama-server both reuse the KV cache for an unchanged prompt prefix (with Ollama on
+  an M-series Mac, a repeat 2,300-token system prompt takes ~15–45 ms instead of ~1 s). Qwen3.5 is a hybrid
+  (linear-attention) model, so llama-server can only resume from a checkpoint at the end of the system prompt. The system prompt is therefore byte-identical across dictations (rules, all tones,
   dictionary, memory, corrections), and the tone, field context and transcript travel in the user message as
   `[tone: casual | window: … | before: "…"]` + transcript. A tone switch costs ~60 prompt tokens, not ~400.
 - **Casual fast path.** A casual message of ≤ 12 words with no correction words is finished by rules alone (lowercase,
@@ -163,6 +167,6 @@ OPENFLOW_DATA_DIR=/tmp/openflow-test pnpm tauri dev         # run against a scra
 ```
 
 Layout: `src/` React UI, `src-tauri/` app shell and orchestrator, `crates/openflow-core` (rules, pipeline, data),
-`crates/openflow-engines` (llama-server, Groq, whisper-server, speech helper client), `crates/openflow-platform` (macOS
+`crates/openflow-engines` (Ollama, llama-server, Groq, whisper-server, speech helper client), `crates/openflow-platform` (macOS
 integration), `sidecar/openflow-helper` (Swift: Parakeet, SenseVoice, system audio tap, Contacts/Calendar).
 See `docs/ARCHITECTURE.md`. The original Swift app is kept locally in `dep/` (not tracked) as the reference.

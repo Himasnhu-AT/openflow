@@ -149,8 +149,14 @@ impl Ollama {
         self.version().await.is_ok()
     }
 
-    /// Installed models (`GET /api/tags`).
+    /// Installed local models (`GET /api/tags`). Ollama cloud models (`remote_host` set) are left out: they
+    /// would send dictation off this Mac, which the local engine must never do.
     pub async fn models(&self) -> Result<Vec<OllamaModel>> {
+        Ok(self.tags().await?.into_iter().filter(|(_, remote)| !remote).map(|(m, _)| m).collect())
+    }
+
+    /// Every entry of `/api/tags`, with whether it is a cloud model.
+    async fn tags(&self) -> Result<Vec<(OllamaModel, bool)>> {
         let v: Value = self
             .http
             .get(format!("{}/api/tags", self.base))
@@ -160,23 +166,16 @@ impl Ollama {
             .error_for_status()?
             .json()
             .await?;
-        Ok(v.get("models")
-            .and_then(Value::as_array)
-            .map(|a| {
-                a.iter()
-                    .filter_map(|m| {
-                        Some(OllamaModel {
-                            name: m.get("name").or_else(|| m.get("model"))?.as_str()?.to_string(),
-                            size: m.get("size").and_then(Value::as_u64).unwrap_or(0),
-                        })
-                    })
-                    .collect()
-            })
-            .unwrap_or_default())
+        Ok(parse_tags(&v))
     }
 
+    /// Whether `tag` is pulled locally. A cloud model is an error, never a local engine.
     pub async fn has_model(&self, tag: &str) -> Result<bool> {
-        Ok(self.models().await?.iter().any(|m| tag_matches(&m.name, tag)))
+        let tags = self.tags().await?;
+        if tags.iter().any(|(m, remote)| *remote && tag_matches(&m.name, tag)) {
+            bail!("{tag} is an Ollama cloud model. OpenFlow's local engine only uses models on this Mac; use Settings › Processing for cloud models.");
+        }
+        Ok(tags.iter().any(|(m, _)| tag_matches(&m.name, tag)))
     }
 
     /// One chat completion. Streams (NDJSON) and reports each partial when `on_partial` is set.
@@ -340,6 +339,22 @@ impl Ollama {
     }
 }
 
+/// `/api/tags` entries as (model, is_cloud).
+fn parse_tags(v: &Value) -> Vec<(OllamaModel, bool)> {
+    v.get("models")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|m| {
+                    let name = m.get("name").or_else(|| m.get("model"))?.as_str()?.to_string();
+                    let remote = m.get("remote_host").is_some() || m.get("remote_model").is_some();
+                    Some((OllamaModel { name, size: m.get("size").and_then(Value::as_u64).unwrap_or(0) }, remote))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// One NDJSON line of a streaming `/api/chat`. Returns Some(true) when the reply is complete.
 fn feed_ndjson(
     line: &[u8],
@@ -416,6 +431,17 @@ mod tests {
         assert_eq!(text, "see you thursday");
         assert_eq!(seen.lock().unwrap().last().unwrap(), "see you thursday");
         assert_eq!((t.prompt_tokens, t.prompt_ms as i64, t.generated_tokens), (812, 95, 6));
+    }
+
+    #[test]
+    fn cloud_models_are_marked() {
+        let v: Value = serde_json::from_str(
+            r#"{"models":[{"name":"qwen3.5:4b","size":3400000000},{"name":"glm-5.2:cloud","remote_model":"glm-5.2","remote_host":"https://ollama.com","size":290}]}"#,
+        )
+        .unwrap();
+        let tags = parse_tags(&v);
+        assert_eq!(tags.len(), 2);
+        assert!(!tags[0].1 && tags[1].1);
     }
 
     #[test]

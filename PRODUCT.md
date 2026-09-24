@@ -21,7 +21,7 @@ OpenFlow is voice dictation and meeting notes that run on your own Mac.
 ## Positioning
 Everything runs locally by default:
 - Speech recognition: NVIDIA Parakeet on CoreML through a Swift helper.
-- Cleanup: Qwen3.5 through llama.cpp.
+- Cleanup: Qwen3.5 through Ollama (default), or llama.cpp's llama-server. Ollama cloud models are never used by the local engine.
 - Audio is never stored for meetings. Nothing leaves the machine unless the user opts in to cloud models with their own Groq key, and any cloud failure falls back to local.
 - It is open source (BSD 3-Clause). Every rule, prompt and model is visible and swappable.
 - An `--eval` command replays the user's own corrected dictations to measure whether a change helped.
@@ -35,7 +35,7 @@ The app lives in the macOS menu bar and Dock and works in any app with a text fi
 
 ## Capabilities and Constraints
 - **Platform:** macOS 15+ on Apple Silicon today. Windows and Linux are planned, and the platform layer is built for them, but they are not shipped.
-- **Requirements:** `brew install llama.cpp` for cleanup. Models download once: Parakeet (~600 MB) and Qwen3.5 2B, 4B or 9B from the Models page. whisper-cpp is optional, for the other side of calls.
+- **Requirements:** Ollama for cleanup (OpenFlow starts it and pulls `qwen3.5:4b`, 3.4 GB; 2B is 2.7 GB, 9B is 6.6 GB). llama.cpp with a GGUF is the alternative and the fallback. Parakeet (~600 MB) downloads once. whisper-cpp is optional, for the other side of calls.
 - **Dictation features:**
   - hold to talk, quick-tap to toggle, Esc to cancel
   - ⌘⇧; for the alternate tone
@@ -53,6 +53,7 @@ The app lives in the macOS menu bar and Dock and works in any app with a text fi
 
 ## Evidence on Hand
 - **Measured on this Mac (Apple Silicon):**
+  - with Ollama (a 4B-class model), a repeat polish call in ~170–220 ms: the 2,300-token system prompt is served from cache in 14–46 ms
   - ~70 ms to transcribe a 3.8 s clip (steady state), 160–200 ms with dictionary boosting
   - 0.6 ms of rule processing per 60-word dictation
   - 110/110 self-tests passing

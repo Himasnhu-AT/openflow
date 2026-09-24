@@ -334,3 +334,13 @@ async fn ollama_model_errors_surface() {
     let err = p.complete("S", "U", 10, Duration::from_secs(5)).await.unwrap_err().to_string();
     assert!(err.contains("not found"), "{err}");
 }
+
+#[tokio::test]
+async fn ollama_refuses_cloud_models_as_the_local_engine() {
+    let tags = r#"{"models":[{"name":"glm-5.2:cloud","remote_model":"glm-5.2","remote_host":"https://ollama.com","size":290}]}"#;
+    let (port, _) = serve(vec![reply(200, r#"{"version":"0.34.1"}"#), reply(200, tags)]).await;
+    let mut cfg = ollama_config(port);
+    cfg.ollama_model = "glm-5.2:cloud".into();
+    let err = Polisher::new(cfg, Scope::Dictation).start().await.unwrap_err().to_string();
+    assert!(err.contains("cloud model"), "{err}");
+}

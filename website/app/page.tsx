@@ -169,7 +169,7 @@ export default function Home() {
               <LegendKey kind="mod" size="key--row" legend="Mic" sub="16 kHz, on-device" />
               <LegendKey size="key--row" legend="Parakeet" sub="speech → text · ~70 ms per 3.8 s clip" />
               <LegendKey size="key--row" legend="Rules" sub="fillers, commands · 0.6 ms" />
-              <LegendKey size="key--row" legend="Qwen3.5" sub="tone and grammar · llama.cpp" />
+              <LegendKey size="key--row" legend="Qwen3.5" sub="tone and grammar · Ollama" />
               <LegendKey kind="accent" size="key--row" legend="⌘V" sub="pasted at your cursor" />
               <LegendKey kind="blank" size="key--row" legend="Cloud" sub="off unless you turn it on" />
             </ol>
@@ -253,7 +253,7 @@ export default function Home() {
               <code>
                 <span className="c"># build it yourself</span>
                 {"\n"}
-                <span className="p">$</span> brew install llama.cpp{"\n"}
+                <span className="p">$</span> brew install ollama{"\n"}
                 <span className="p">$</span> pnpm install{"\n"}
                 <span className="p">$</span> ./scripts/build.sh --install{"\n\n"}
                 <span className="c"># rule checks, no models needed</span>
@@ -277,11 +277,13 @@ export default function Home() {
               <LegendKey size="key--row" legend="A Mac" sub="macOS 15 or later, Apple Silicon" />
               <LegendKey
                 size="key--row"
-                legend="llama.cpp"
+                legend="Ollama"
                 sub={
                   <>
-                    <code>brew install llama.cpp</code> for cleanup; without it, text is pasted verbatim
+                    runs cleanup; OpenFlow starts it and pulls <code>qwen3.5:4b</code> (3.4 GB)
                   </>
+                }
+              />
                 }
               />
               <LegendKey

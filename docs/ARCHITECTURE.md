@@ -10,7 +10,7 @@ src/                     React UI. main.tsx = main window, overlay/main.tsx = fl
 src-tauri/               Tauri app: orchestrator (state machine), commands, tray, windows, CLI tools.
 crates/openflow-core/         Pure logic, no OS or network: config, model (DTOs), store, text_rules, pipeline,
                          meeting, segmenter, catalog, wav, wer, whisper_filter, traits (all cross-crate contracts).
-crates/openflow-engines/      Processes and network: polisher (llama-server), prompts, cloud (Groq), whisper_server,
+crates/openflow-engines/      Processes and network: ollama, polisher (Ollama or llama-server), prompts, cloud (Groq), whisper_server,
                          notes, meeting_engine, downloader, sidecar (Swift helper client), live (live re-decode).
 crates/openflow-platform/     OS integration behind openflow_core::traits: macos/ (hotkey, AX, keyboard/clipboard, mic,
                          devices, apps, sounds) + cross-platform live_typer and detector built on the traits.
@@ -37,7 +37,8 @@ Windows/Linux ports add `openflow-platform/src/{windows,linux}` and a sherpa-onn
 
 | What | Port / binary |
 |---|---|
-| llama-server (polish) | 127.0.0.1:8765 (`config.llamaPort`) |
+| Ollama (polish, default engine) | 127.0.0.1:11434 (`config.ollamaUrl`); started via Ollama.app or `ollama serve` |
+| llama-server (polish, alternative/fallback) | 127.0.0.1:8765 (`config.llamaPort`) |
 | llama-server (notes model, transient) | 127.0.0.1:8767 |
 | whisper-server (meetings, far side) | 127.0.0.1:8768 |
 | openflow-helper | child process, stdio |
