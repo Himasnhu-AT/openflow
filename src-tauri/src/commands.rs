@@ -3,7 +3,6 @@
 use openflow_core::model::{AppInfo, InputDevice, Meeting};
 use openflow_core::{paths, Config};
 use tauri::{AppHandle, State};
-use tauri_plugin_autostart::ManagerExt;
 use uuid::Uuid;
 
 use crate::orchestrator::Msg;
@@ -171,14 +170,13 @@ pub fn copy_text(state: State<'_, AppState>, text: String) {
 }
 
 #[tauri::command]
-pub fn get_launch_at_login(app: AppHandle) -> bool {
-    app.autolaunch().is_enabled().unwrap_or(false)
+pub fn get_launch_at_login() -> bool {
+    crate::login_item::is_enabled()
 }
 
 #[tauri::command]
-pub fn set_launch_at_login(app: AppHandle, enabled: bool) -> CmdResult<()> {
-    let l = app.autolaunch();
-    if enabled { l.enable() } else { l.disable() }.map_err(|e| e.to_string())
+pub fn set_launch_at_login(enabled: bool) -> CmdResult<()> {
+    crate::login_item::set_enabled(enabled)
 }
 
 #[tauri::command]

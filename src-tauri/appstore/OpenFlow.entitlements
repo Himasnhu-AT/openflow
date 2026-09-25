@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mac App Store: the app runs in the App Sandbox. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- Dictation and the "You" side of meetings. -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<!-- Model downloads (Hugging Face), the local speech server and Ollama on 127.0.0.1, optional Groq. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- 127.0.0.1 listeners: the Google Meet extension bridge and the bundled speech server. -->
+	<key>com.apple.security.network.server</key>
+	<true/>
+	<!-- Names from Contacts and today's Calendar events bias speech recognition (optional, asked on first use). -->
+	<key>com.apple.security.personal-information.addressbook</key>
+	<true/>
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<!-- Exporting a meeting as Markdown to a file the user picks. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+</dict>
+</plist>

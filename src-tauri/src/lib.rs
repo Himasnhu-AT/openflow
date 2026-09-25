@@ -4,6 +4,7 @@ mod bridge;
 pub mod cli;
 mod commands;
 mod logging;
+pub(crate) mod login_item;
 mod meeting;
 mod orchestrator;
 mod state;
@@ -85,7 +86,6 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .manage(AppState { shared: shared.clone(), orchestrator: handle.clone() })
         .menu(app_menu)
         .on_menu_event(|app, event| {
@@ -131,6 +131,7 @@ pub fn run() {
             shared.attach(handle_app.clone());
             tray::create(&handle_app, &shared)?;
             windows::setup_overlay(&handle_app);
+            login_item::migrate_legacy_agent();
             orchestrator::spawn(handle_app.clone(), shared.clone(), handle.clone(), rx);
             let settings = settings_arg();
             shared.runtime().initial_page = settings.clone().flatten();

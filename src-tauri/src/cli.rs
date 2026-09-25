@@ -68,6 +68,16 @@ pub fn dispatch(args: &[String]) -> Option<i32> {
     if let Some(name) = arg_after(args, "--tapprocs") {
         return exit(runtime().block_on(tapprocs(&name)));
     }
+    if let Some(action) = arg_after(args, "--loginitem") {
+        // status | on | off (the app's login item, through SMAppService).
+        let result = match action.as_str() {
+            "on" => crate::login_item::set_enabled(true),
+            "off" => crate::login_item::set_enabled(false),
+            _ => Ok(()),
+        };
+        println!("loginitem: {action} -> {result:?}, enabled now {}", crate::login_item::is_enabled());
+        return exit(result.is_ok());
+    }
     if has(args, "--whispertest") {
         let files: Vec<String> = args.iter().skip_while(|a| *a != "--whispertest").skip(1).cloned().collect();
         return exit(runtime().block_on(whispertest(&files)));
