@@ -11,6 +11,13 @@ pub fn data_dir() -> PathBuf {
     dirs::data_dir().unwrap_or_else(|| PathBuf::from(".")).join("OpenFlow")
 }
 
+/// Running in the App Sandbox (the Mac App Store build). macOS sets `APP_SANDBOX_CONTAINER_ID` for every sandboxed
+/// process. Sandboxed, OpenFlow cannot see or start programs outside its bundle (Homebrew's llama-server and
+/// `ollama`), so it only talks to the Ollama app and uses its bundled servers.
+pub fn sandboxed() -> bool {
+    std::env::var_os("APP_SANDBOX_CONTAINER_ID").is_some()
+}
+
 pub fn config_file() -> PathBuf {
     data_dir().join("config.json")
 }

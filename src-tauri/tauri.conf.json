@@ -31,7 +31,6 @@
         "width": 200,
         "height": 52,
         "decorations": false,
-        "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "resizable": false,
@@ -43,8 +42,7 @@
     ],
     "security": {
       "csp": null
-    },
-    "macOSPrivateApi": true
+    }
   },
   "bundle": {
     "active": true,
@@ -61,14 +59,24 @@
     ],
     "macOS": {
       "minimumSystemVersion": "15.0",
-      "infoPlist": "Info.plist"
+      "infoPlist": "Info.plist",
+      "files": {
+        "Resources/PrivacyInfo.xcprivacy": "./appstore/PrivacyInfo.xcprivacy"
+      }
     },
     "category": "Productivity",
     "externalBin": [
-      "binaries/openflow-helper"
+      "binaries/openflow-helper",
+      "binaries/transcribe-server"
     ],
     "resources": {
-      "../README.md": "README.md"
+      "../README.md": "README.md",
+      "../browser-extension/manifest.json": "browser-extension/manifest.json",
+      "../browser-extension/content-script.js": "browser-extension/content-script.js",
+      "../browser-extension/service-worker.js": "browser-extension/service-worker.js",
+      "../browser-extension/popup.html": "browser-extension/popup.html",
+      "../browser-extension/popup.js": "browser-extension/popup.js",
+      "../browser-extension/README.md": "browser-extension/README.md"
     }
   },
   "mainBinaryName": "OpenFlow"

@@ -507,6 +507,35 @@ impl Sidecar {
         ))
     }
 
+    /// Silero speech probability per 256 ms chunk.
+    pub async fn vad(&self, samples: &[f32]) -> Result<Vec<f32>> {
+        let r = self.request("vad", Value::Null, samples).await?;
+        Ok(r.get("probabilities")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_f64).map(|p| p as f32).collect())
+            .unwrap_or_default())
+    }
+
+    /// Zoom's active speaker, the user's own name and the roster, from Accessibility. None when Zoom isn't
+    /// running or Accessibility isn't granted.
+    pub async fn zoom_speakers(&self) -> Result<Option<ZoomSnapshot>> {
+        let r = self.request("zoomSpeakers", Value::Null, &[]).await?;
+        if !r.get("running").and_then(Value::as_bool).unwrap_or(false) {
+            return Ok(None);
+        }
+        let s = |k: &str| r.get(k).and_then(Value::as_str).map(str::to_owned);
+        Ok(Some(ZoomSnapshot {
+            active: s("active"),
+            active_is_label: s("activeSource").as_deref() == Some("label"),
+            self_name: s("self"),
+            participants: r
+                .get("participants")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+                .unwrap_or_default(),
+        }))
+    }
+
     pub async fn names(&self) -> Result<Vec<String>> {
         let r = self.request("names", Value::Null, &[]).await?;
         Ok(r.get("names")
@@ -525,6 +554,13 @@ impl Sidecar {
             .request("tapProcesses", json!({ "match": matching }), &[])
             .await?;
         Ok(r.get("count").and_then(Value::as_u64).unwrap_or(0) as usize)
+    }
+
+    /// Whether the app (bundle id prefix) has audio input / output running: a call in progress.
+    pub async fn app_audio(&self, matching: &str) -> Result<(bool, bool)> {
+        let r = self.request("appAudio", json!({ "match": matching }), &[]).await?;
+        let flag = |k: &str| r.get(k).and_then(Value::as_bool).unwrap_or(false);
+        Ok((flag("input"), flag("output")))
     }
 
     pub fn tap_start(&self, bundle: &str, sink: ChunkSink) -> Result<()> {
@@ -648,6 +684,20 @@ impl AsrEngine for SidecarAsr {
     async fn transcribe_multilingual(&self, samples: &[f32]) -> Result<String> {
         self.0.sense_voice(samples).await
     }
+
+    async fn speech_probabilities(&self, samples: &[f32]) -> Result<Option<Vec<f32>>> {
+        self.0.vad(samples).await.map(Some)
+    }
+}
+
+/// One read of Zoom's meeting window (see the helper's ZoomSpeakers.swift).
+#[derive(Debug, Clone, Default)]
+pub struct ZoomSnapshot {
+    pub active: Option<String>,
+    /// The name came from Zoom's "Talking:" label (authoritative) rather than the floating window's first tile.
+    pub active_is_label: bool,
+    pub self_name: Option<String>,
+    pub participants: Vec<String>,
 }
 
 /// Core Audio process tap in the helper. `start` fails with the helper's message (e.g. no permission).

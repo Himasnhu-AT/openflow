@@ -68,6 +68,23 @@ pub fn dispatch(args: &[String]) -> Option<i32> {
     if let Some(name) = arg_after(args, "--tapprocs") {
         return exit(runtime().block_on(tapprocs(&name)));
     }
+    if let Some(action) = arg_after(args, "--loginitem") {
+        // status | on | off (the app's login item, through SMAppService).
+        let result = match action.as_str() {
+            "on" => crate::login_item::set_enabled(true),
+            "off" => crate::login_item::set_enabled(false),
+            _ => Ok(()),
+        };
+        println!("loginitem: {action} -> {result:?}, enabled now {}", crate::login_item::is_enabled());
+        return exit(result.is_ok());
+    }
+    if has(args, "--whispertest") {
+        let files: Vec<String> = args.iter().skip_while(|a| *a != "--whispertest").skip(1).cloned().collect();
+        return exit(runtime().block_on(whispertest(&files)));
+    }
+    if let Some(path) = arg_after(args, "--vadtest") {
+        return exit(runtime().block_on(vadtest(&path)));
+    }
     if has(args, "--taptest") {
         return exit(runtime().block_on(taptest()));
     }
@@ -114,7 +131,7 @@ fn data_self_test() -> (usize, Vec<String>) {
     };
     let got: Arc<Mutex<Vec<(usize, f64)>>> = Arc::default();
     let g2 = Arc::clone(&got);
-    let seg = openflow_core::segmenter::Segmenter::new(Box::new(move |s, t| g2.lock().unwrap().push((s.len(), t))));
+    let seg = openflow_core::segmenter::Segmenter::new(Box::new(move |s, t, _| g2.lock().unwrap().push((s.len(), t))));
     let mut audio = vec![0f32; 16_000]; // 1 s silence
     audio.extend((0..24_000).map(|i| (i as f32 * 0.2).sin() * 0.3)); // 1.5 s tone
     audio.extend(vec![0f32; 16_000]); // 1 s silence
@@ -478,13 +495,72 @@ async fn compare(n: usize) -> bool {
 }
 
 async fn tapprocs(name: &str) -> bool {
-    match Sidecar::new().tap_processes(name).await {
+    let sidecar = Sidecar::new();
+    match sidecar.tap_processes(name).await {
         Ok(n) => {
-            println!("{n} audio process(es) match {name}");
+            let (input, output) = sidecar.app_audio(name).await.unwrap_or_default();
+            println!("{n} audio process(es) match {name}; input running: {input}, output running: {output}");
             true
         }
         Err(e) => {
             println!("tapprocs: {e:#}");
+            false
+        }
+    }
+}
+
+/// The meeting speech server end to end: start it as a meeting would, transcribe each WAV, stop it.
+async fn whispertest(files: &[String]) -> bool {
+    let Some(config) = load_config() else { return false };
+    let server = openflow_engines::whisper_server::WhisperServer::new(config);
+    println!("whispertest: server {:?}, model {}", server.server_path(), server.model_path().display());
+    let started = std::time::Instant::now();
+    if let Err(e) = server.start().await {
+        println!("whispertest: {e:#}");
+        return false;
+    }
+    println!("whispertest: ready and warm in {:.1} s", started.elapsed().as_secs_f64());
+    let mut ok = true;
+    for f in files {
+        let samples = match openflow_core::wav::read(std::path::Path::new(f)) {
+            Ok(s) => s,
+            Err(e) => {
+                println!("{f}: {e:#}");
+                ok = false;
+                continue;
+            }
+        };
+        let t = std::time::Instant::now();
+        match server.transcribe(&samples).await {
+            Ok((text, lang)) => println!("{f} ({:.2} s, {lang}): {text:?}", t.elapsed().as_secs_f64()),
+            Err(e) => {
+                println!("{f}: {e:#}");
+                ok = false;
+            }
+        }
+    }
+    server.stop();
+    ok
+}
+
+/// Silero VAD over a 16 kHz WAV: per-chunk probabilities and the meeting gate's verdict.
+async fn vadtest(path: &str) -> bool {
+    let samples = match openflow_core::wav::read(std::path::Path::new(path)) {
+        Ok(s) => s,
+        Err(e) => {
+            println!("vadtest: {e:#}");
+            return false;
+        }
+    };
+    match Sidecar::new().vad(&samples).await {
+        Ok(p) => {
+            let voiced = p.iter().any(|p| *p >= openflow_engines::meeting_engine::VAD_THRESHOLD);
+            let shown: Vec<String> = p.iter().map(|p| format!("{p:.2}")).collect();
+            println!("vadtest: {} chunks [{}] -> {}", p.len(), shown.join(" "), if voiced { "voice" } else { "no voice" });
+            true
+        }
+        Err(e) => {
+            println!("vadtest: {e:#}");
             false
         }
     }

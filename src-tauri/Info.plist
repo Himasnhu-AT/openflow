@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Only standard encryption (HTTPS through the OS and rustls): exempt from export documentation. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OpenFlow listens while you hold the hotkey so it can transcribe your dictation on-device.</string>
 	<key>NSAudioCaptureUsageDescription</key>

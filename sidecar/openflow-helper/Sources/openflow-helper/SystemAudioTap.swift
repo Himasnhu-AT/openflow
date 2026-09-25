@@ -48,12 +48,22 @@ final class SystemAudioTap {
     var appBundleID = ""
 
     static let batchSamples = 1600   // 100 ms at 16 kHz
+    /// A running tap delivers buffers even while nobody speaks, so this long without one means it died
+    /// (device reset, coreaudiod restart, sleep): rebuild it.
+    static let stallSeconds = 8.0
     private var pending: [Float] = []
+    /// Wall time of the last IO callback (written on the IO thread, read by the health timer).
+    private var lastBuffer = Date()
+    private var builtAt = Date()
+    /// Process objects the current tap covers (sorted); empty for a global tap.
+    private var tappedProcesses: [AudioObjectID] = []
+    private var health: DispatchSourceTimer?
     private let pendingLock = NSLock()
     private let deliver = DispatchQueue(label: "com.himanshuat.openflow.helper.tap")
 
     func start() throws {
         try startTap()
+        startHealthChecks()
         // When the default output changes (AirPods connect mid-call), the aggregate device keeps following the old
         // output and the far side goes silent: rebuild on change.
         if !listening {
@@ -89,8 +99,61 @@ final class SystemAudioTap {
         }
     }
 
+    /// Every 2 s on the main queue: rebuild a stalled tap, and re-tap when the call app gained or lost audio
+    /// processes (Chrome and Zoom start a new one for a call, a tab or a device switch; a tap of the old set
+    /// hears nothing).
+    private func startHealthChecks() {
+        guard health == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + 2, repeating: 2)
+        timer.setEventHandler { [weak self] in self?.checkHealth() }
+        timer.resume()
+        health = timer
+    }
+
+    private func checkHealth() {
+        let now = Date()
+        pendingLock.lock()
+        let silentFor = now.timeIntervalSince(max(lastBuffer, builtAt))
+        pendingLock.unlock()
+        var reason: String?
+        if silentFor > Self.stallSeconds {
+            reason = "no audio for \(Int(silentFor)) s"
+        } else if aggregateID != kAudioObjectUnknown && !appBundleID.isEmpty {
+            let current = Self.audioProcesses(matching: appBundleID).sorted()
+            if !current.isEmpty && current != tappedProcesses { reason = "\(appBundleID) audio processes changed" }
+        }
+        guard let reason else { return }
+        helperLog("info", "Rebuilding the system audio tap: \(reason)")
+        stopTap()
+        do { try startTap(); onRestart?() } catch {
+            helperLog("error", error.localizedDescription)
+            builtAt = Date()   // try again after another stall period, not every tick
+        }
+    }
+
+    /// Whether any audio process of the app currently has input (a mic open) or output running. A call app keeps
+    /// both running for the whole call, silent or not, and stops them when the call ends.
+    static func audioActivity(matching prefix: String) -> (input: Bool, output: Bool) {
+        var input = false, output = false
+        for id in audioProcesses(matching: prefix) {
+            input = input || flag(id, kAudioProcessPropertyIsRunningInput)
+            output = output || flag(id, kAudioProcessPropertyIsRunningOutput)
+        }
+        return (input, output)
+    }
+
+    private static func flag(_ id: AudioObjectID, _ selector: AudioObjectPropertySelector) -> Bool {
+        var addr = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var value: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        return AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &value) == noErr && value != 0
+    }
+
     private func startTap() throws {
         let processes = appBundleID.isEmpty ? [] : Self.audioProcesses(matching: appBundleID)
+        tappedProcesses = processes.sorted()
+        pendingLock.lock(); builtAt = Date(); pendingLock.unlock()
         let desc = processes.isEmpty ? CATapDescription(stereoGlobalTapButExcludeProcesses: []) : CATapDescription(stereoMixdownOfProcesses: processes)
         if !processes.isEmpty { helperLog("info", "Tapping \(processes.count) audio process(es) of \(appBundleID)") }
         else if !appBundleID.isEmpty { helperLog("info", "No audio processes found for \(appBundleID); tapping all system audio") }
@@ -134,6 +197,7 @@ final class SystemAudioTap {
         guard let format, let buf = AVAudioPCMBuffer(pcmFormat: format, bufferListNoCopy: list, deallocator: nil),
               let samples = resampler?.convert(buf), !samples.isEmpty else { return }
         pendingLock.lock()
+        lastBuffer = Date()
         pending.append(contentsOf: samples)
         var batch: [Float] = []
         if pending.count >= Self.batchSamples { batch = pending; pending.removeAll(keepingCapacity: true) }
@@ -150,6 +214,8 @@ final class SystemAudioTap {
     }
 
     func stop() {
+        health?.cancel()
+        health = nil
         if listening, let block = outputListener {
             var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultOutputDevice, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
             AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &addr, DispatchQueue.main, block)

@@ -2,8 +2,7 @@
 
 use openflow_core::model::{AppInfo, InputDevice, Meeting};
 use openflow_core::{paths, Config};
-use tauri::{AppHandle, State};
-use tauri_plugin_autostart::ManagerExt;
+use tauri::{AppHandle, Manager, State};
 use uuid::Uuid;
 
 use crate::orchestrator::Msg;
@@ -157,6 +156,20 @@ pub fn open_path(app: AppHandle, which: String) -> CmdResult<()> {
             paths::models_dir()
         }
         "readme" => crate::readme_path(&app).ok_or("README not found")?,
+        // The Chrome extension ships inside the app: Finder shows its folder for chrome://extensions › Load unpacked.
+        "extension" => {
+            let dir = app
+                .path()
+                .resource_dir()
+                .map(|d| d.join("browser-extension"))
+                .ok()
+                .filter(|d| d.join("manifest.json").exists())
+                .unwrap_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../browser-extension"));
+            return app.opener().reveal_item_in_dir(dir.join("manifest.json")).map_err(|e| e.to_string());
+        }
+        "ollama-download" => {
+            return app.opener().open_url("https://ollama.com/download", None::<&str>).map_err(|e| e.to_string());
+        }
         _ => return Err(format!("unknown path {which}")),
     };
     app.opener().open_path(path.display().to_string(), None::<&str>).map_err(|e| e.to_string())
@@ -168,14 +181,13 @@ pub fn copy_text(state: State<'_, AppState>, text: String) {
 }
 
 #[tauri::command]
-pub fn get_launch_at_login(app: AppHandle) -> bool {
-    app.autolaunch().is_enabled().unwrap_or(false)
+pub fn get_launch_at_login() -> bool {
+    crate::login_item::is_enabled()
 }
 
 #[tauri::command]
-pub fn set_launch_at_login(app: AppHandle, enabled: bool) -> CmdResult<()> {
-    let l = app.autolaunch();
-    if enabled { l.enable() } else { l.disable() }.map_err(|e| e.to_string())
+pub fn set_launch_at_login(enabled: bool) -> CmdResult<()> {
+    crate::login_item::set_enabled(enabled)
 }
 
 #[tauri::command]

@@ -290,6 +290,16 @@ function Detail({
   );
 }
 
+/** "Priya Shah" -> "Priya" in the narrow speaker column; the full name is in the tooltip. */
+function firstName(speaker: string) {
+  return speaker.split(" ")[0] || speaker;
+}
+
+/** Same count as Meeting::words in Rust; below 25 no notes are written. */
+function wordCount(m: Meeting) {
+  return m.segments.reduce((n, s) => n + s.text.split(" ").filter(Boolean).length, 0);
+}
+
 function SummaryTab({ m, summarizing, requested }: { m: Meeting; summarizing: boolean; requested: Set<string> }) {
   const live = m.end == null;
   // Notes are written without asking: once per meeting per view, when a finished meeting with a transcript has none.
@@ -310,7 +320,13 @@ function SummaryTab({ m, summarizing, requested }: { m: Meeting; summarizing: bo
             </div>
           ) : (
             <div style={{ color: "var(--secondary)" }}>
-              {m.segments.length === 0 ? (live ? "Listening… notes appear a few minutes in." : "Nothing was transcribed.") : "Notes are on their way."}
+              {m.segments.length === 0
+                ? live
+                  ? "Listening… notes appear a few minutes in."
+                  : "Nothing was transcribed."
+                : !live && wordCount(m) < 25
+                  ? "Too short for notes. The transcript has everything that was said."
+                  : "Notes are on their way."}
             </div>
           )
         ) : (
@@ -339,6 +355,11 @@ function TranscriptTab({ m }: { m: Meeting }) {
   const ref = useRef<HTMLDivElement>(null);
   const live = m.end == null;
   const lines = useMemo(() => [...m.segments].sort((a, b) => a.time - b.time), [m.segments]);
+  // Named speakers (from Zoom or the Meet extension) need more room than "You" / "Them".
+  const speakerWidth = useMemo(
+    () => Math.min(96, Math.max(40, ...lines.map((s) => firstName(s.speaker).length * 7.5))),
+    [lines],
+  );
   useLayoutEffect(() => {
     if (live && ref.current) ref.current.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" });
   }, [m.segments.length, live]);
@@ -353,8 +374,21 @@ function TranscriptTab({ m }: { m: Meeting }) {
             <span style={{ width: 44, flex: "none", textAlign: "right", fontSize: 11, color: "var(--tertiary)", fontVariantNumeric: "tabular-nums", paddingTop: 2 }}>
               {clock(s.time)}
             </span>
-            <span style={{ width: 40, flex: "none", fontSize: 12, fontWeight: 600, color: s.speaker === "You" ? "var(--accent)" : "var(--them)", paddingTop: 1 }}>
-              {s.speaker}
+            <span
+              title={s.speaker}
+              style={{
+                width: speakerWidth,
+                flex: "none",
+                fontSize: 12,
+                fontWeight: 600,
+                color: s.speaker === "You" ? "var(--accent)" : "var(--them)",
+                paddingTop: 1,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {firstName(s.speaker)}
             </span>
             <span className="selectable" style={{ fontSize: 14, minWidth: 0 }}>
               {s.text}

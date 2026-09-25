@@ -310,7 +310,13 @@ impl Ollama {
             return Ok(None);
         }
         let mut child = None;
-        if configured_binary.is_empty() && app_installed() {
+        if openflow_core::paths::sandboxed() {
+            // The sandbox hides Homebrew; LaunchServices can still start the Ollama app.
+            if !app_installed() {
+                bail!("Ollama isn't running. Install the Ollama app from ollama.com/download and open it.");
+            }
+            let _ = Command::new("/usr/bin/open").args(["-g", "-a", "Ollama"]).status().await;
+        } else if configured_binary.is_empty() && app_installed() {
             let _ = Command::new("/usr/bin/open").args(["-g", "-a", "Ollama"]).status().await;
         } else {
             let bin = find_binary(configured_binary)

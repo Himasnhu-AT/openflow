@@ -140,7 +140,7 @@ type Orc = Arc<Inner>;
 /// Set once the orchestrator runs; `shutdown_now` stops child processes on quit.
 static ORC: std::sync::OnceLock<Orc> = std::sync::OnceLock::new();
 
-/// Stops llama-server, whisper-server, the helper and the mic. Safe to call more than once.
+/// Stops llama-server, the speech server, the helper and the mic. Safe to call more than once.
 pub fn shutdown_now() {
     if let Some(orc) = ORC.get() {
         shutdown(orc);
@@ -248,6 +248,15 @@ fn launch(orc: &Orc) {
         })));
     }
 
+    // OPENFLOW_PREVIEW_PILL=<app name> shows the meeting offer pill at launch (visual checks, screenshots).
+    if let Some(app) = std::env::var("OPENFLOW_PREVIEW_PILL").ok().filter(|a| !a.is_empty()) {
+        *orc.meeting_offer.lock().unwrap() = Some(app);
+        render(orc);
+    }
+
+    // Speech servers a previous run left behind (no meeting can be running yet).
+    tauri::async_runtime::spawn(WhisperServer::kill_orphans());
+
     // Meeting detection.
     {
         let o = Arc::clone(orc);
@@ -280,6 +289,12 @@ fn launch(orc: &Orc) {
             render(&o);
         }));
         orc.detector.start();
+    }
+
+    // Speaker names from the Chrome extension (Google Meet), fed to the live meeting.
+    {
+        let o = Arc::clone(orc);
+        crate::bridge::spawn(Arc::new(move |event| on_extension_event(&o, event)));
     }
 
     // Contacts/Calendar names now and hourly.
@@ -558,7 +573,7 @@ fn config_changed(orc: &Orc, previous: &Config) {
     render(orc);
 }
 
-/// A clean quit also stops llama-server, whisper-server and the helper.
+/// A clean quit also stops llama-server, the speech server and the helper.
 fn shutdown(orc: &Orc) {
     orc.platform.mic.shutdown();
     if let Some(run) = orc.meeting.lock().unwrap().take() {
@@ -1027,7 +1042,7 @@ fn start_meeting(orc: &Orc, app: Option<String>) {
             let w2 = Arc::clone(&w);
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = w2.start().await {
-                    tracing::error!("whisper-server: {e:#}");
+                    tracing::error!("speech server: {e:#}");
                 }
             });
             whisper = Some(w);
@@ -1044,8 +1059,16 @@ fn start_meeting(orc: &Orc, app: Option<String>) {
         Arc::clone(&orc.platform.devices),
         Arc::clone(&orc.system_audio),
     );
-    // Known call app: tap only its audio.
-    let tap_app = if app.is_some() {
+    // Known call app: tap only its audio. A Meet call reported by the extension is in the browser in front (the
+    // pill's button was just clicked there); another browser or none means tapping all system audio.
+    let tap_app = if app.as_deref() == Some(MEET_OFFER) {
+        orc.platform
+            .field
+            .frontmost_app()
+            .map(|a| a.bundle_id)
+            .filter(|b| openflow_platform::detector::BROWSERS.contains(&b.as_str()))
+            .unwrap_or_default()
+    } else if app.is_some() {
         let _ = orc.detector.current_call();
         orc.detector.current_call_bundle()
     } else {
@@ -1072,6 +1095,12 @@ fn start_meeting(orc: &Orc, app: Option<String>) {
                     }
                 }
             });
+            if !tap_app.is_empty() {
+                watch_call_end(orc, id, tap_app.clone());
+            }
+            if tap_app.starts_with("us.zoom.xos") {
+                watch_zoom_speakers(orc, id);
+            }
             render(orc);
             if !system_ok {
                 show_message(orc, "Only your mic is captured: allow System Audio Recording");
@@ -1092,12 +1121,177 @@ fn start_meeting(orc: &Orc, app: Option<String>) {
     orc.shared.emit_snapshot();
 }
 
+/// A call app keeps its microphone open for the whole call (muted or not) and closes it when the call ends.
+/// Once it has been seen open, 20 s closed ends the meeting, so a forgotten meeting doesn't record the rest of the
+/// day. Apps that never open the mic while we watch are left to the user.
+fn watch_call_end(orc: &Orc, id: Uuid, bundle: String) {
+    const CLOSED_FOR: Duration = Duration::from_secs(20);
+    let o = Arc::clone(orc);
+    tauri::async_runtime::spawn(async move {
+        let mut seen_open = false;
+        let mut closed_since: Option<std::time::Instant> = None;
+        loop {
+            tokio::time::sleep(Duration::from_secs(3)).await;
+            let live = o.meeting.lock().unwrap().as_ref().is_some_and(|r| r.session.meeting_id == id);
+            if !live {
+                return;
+            }
+            let Ok((input, _)) = o.sidecar.app_audio(&bundle).await else { continue };
+            if input {
+                seen_open = true;
+                closed_since = None;
+            } else if seen_open {
+                let since = *closed_since.get_or_insert_with(std::time::Instant::now);
+                if since.elapsed() >= CLOSED_FOR {
+                    tracing::info!(target: "meeting", "{bundle} closed its microphone; ending the meeting");
+                    stop_meeting(&o);
+                    show_message(&o, "Call ended. Meeting saved");
+                    return;
+                }
+            }
+        }
+    });
+}
+
+/// Zoom's active speaker, read through Accessibility once a second for the length of the meeting.
+fn watch_zoom_speakers(orc: &Orc, id: Uuid) {
+    let o = Arc::clone(orc);
+    tauri::async_runtime::spawn(async move {
+        let mut logged = false;
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let Some(session) = o.meeting.lock().unwrap().as_ref().filter(|r| r.session.meeting_id == id).map(|r| Arc::clone(&r.session))
+            else {
+                return;
+            };
+            match o.sidecar.zoom_speakers().await {
+                Ok(Some(z)) => {
+                    if !logged && !z.participants.is_empty() {
+                        tracing::info!(target: "meeting", "Zoom speaker names: {} participant(s) visible", z.participants.len());
+                        logged = true;
+                    }
+                    session.observe_speaker(z.active.as_deref(), z.self_name.as_deref(), &z.participants);
+                }
+                Ok(None) => {}
+                Err(e) => tracing::debug!(target: "meeting", "zoom speakers: {e:#}"),
+            }
+        }
+    });
+}
+
+/// Everything the Google Meet extension sends: its status for the UI, the call starting (the meeting offer; in the
+/// App Store build the browser's window titles can't be read, so this is how a Meet call is noticed) and speaker
+/// evidence for the live meeting.
+fn on_extension_event(orc: &Orc, event: crate::bridge::Event) {
+    use crate::bridge::Event;
+    let changed = {
+        let mut rt = orc.shared.runtime();
+        let prev = rt.meet_extension.clone();
+        let mut m = prev.clone().unwrap_or(crate::state::MeetExtension {
+            last_seen: std::time::Instant::now(),
+            in_call: false,
+            active: None,
+            participants: 0,
+            captions: false,
+        });
+        m.last_seen = std::time::Instant::now();
+        match &event {
+            Event::Speaker { active, participants, .. } => {
+                m.in_call = true;
+                m.active = active.clone();
+                m.participants = participants.len();
+            }
+            Event::Caption { .. } => m.captions = true,
+            Event::Call { in_call } => {
+                m.in_call = *in_call;
+                if !in_call {
+                    m.active = None;
+                    m.participants = 0;
+                    m.captions = false;
+                }
+            }
+            Event::Hello => {}
+        }
+        let changed = prev.as_ref().is_none_or(|p| {
+            p.in_call != m.in_call || p.active != m.active || p.participants != m.participants || p.captions != m.captions
+                || p.last_seen.elapsed() > Duration::from_secs(20)
+        });
+        rt.meet_extension = Some(m);
+        changed
+    };
+    if changed {
+        orc.shared.emit_snapshot();
+    }
+
+    let session = orc.meeting.lock().unwrap().as_ref().map(|r| Arc::clone(&r.session));
+    match event {
+        Event::Call { in_call: true } if session.is_none() => offer_meet(orc),
+        Event::Call { in_call: false } => {
+            let from_meet = orc.meeting_offer.lock().unwrap().as_deref() == Some(MEET_OFFER);
+            if from_meet {
+                *orc.meeting_offer.lock().unwrap() = None;
+                render(orc);
+            }
+            if let Some(s) = session {
+                end_meet_meeting_if_left(orc, s.meeting_id);
+            }
+        }
+        Event::Speaker { active, self_name, participants } => {
+            if let Some(s) = session {
+                s.observe_speaker(active.as_deref(), self_name.as_deref(), &participants);
+            }
+        }
+        Event::Caption { name, text } => {
+            if let Some(s) = session {
+                s.observe_caption(&name, &text);
+            }
+        }
+        _ => {}
+    }
+}
+
+const MEET_OFFER: &str = "Google Meet";
+
+/// The Meet tab left the call: a meeting started for Google Meet ends when the tab is still out 8 s later (a
+/// reload or a brief reconnect doesn't end it).
+fn end_meet_meeting_if_left(orc: &Orc, id: Uuid) {
+    let is_meet = orc.shared.store().meetings.iter().any(|m| m.id == id && m.app.as_deref() == Some(MEET_OFFER));
+    if !is_meet {
+        return;
+    }
+    let o = Arc::clone(orc);
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(8)).await;
+        let still_out = o.shared.runtime().meet_extension.as_ref().is_some_and(|m| !m.in_call);
+        let live = o.meeting.lock().unwrap().as_ref().is_some_and(|r| r.session.meeting_id == id);
+        if still_out && live {
+            tracing::info!(target: "meeting", "Left the Google Meet call; ending the meeting");
+            stop_meeting(&o);
+            show_message(&o, "Call ended. Meeting saved");
+        }
+    });
+}
+
+/// The meeting offer pill for a Meet call the extension reported, unless detection is off or an offer is showing.
+fn offer_meet(orc: &Orc) {
+    if !orc.shared.config().meeting_detect || orc.meeting_offer.lock().unwrap().is_some() {
+        return;
+    }
+    *orc.meeting_offer.lock().unwrap() = Some(MEET_OFFER.into());
+    render(orc);
+    let o = Arc::clone(orc);
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(45)).await;
+        if o.meeting_offer.lock().unwrap().as_deref() == Some(MEET_OFFER) {
+            *o.meeting_offer.lock().unwrap() = None;
+            render(&o);
+        }
+    });
+}
+
 fn stop_meeting(orc: &Orc) {
     let Some(run) = orc.meeting.lock().unwrap().take() else { return };
     let id = run.session.meeting_id;
-    if let Some(w) = &run.whisper {
-        w.stop();
-    }
     orc.detector.mark_handled();
     render(orc);
     run.session.stop(); // remaining utterances drain, then the store marks it finished
@@ -1110,6 +1304,17 @@ fn stop_meeting(orc: &Orc) {
             }
             tokio::time::sleep(Duration::from_millis(300)).await;
         }
+        // Nothing was said and nothing was written: don't keep an empty meeting in the list.
+        let empty = {
+            let store = o.shared.store();
+            store.meetings.iter().find(|m| m.id == id).is_some_and(|m| m.segments.is_empty() && m.notes.trim().is_empty())
+        };
+        if empty {
+            tracing::info!(target: "meeting", "Discarding empty meeting {id}");
+            o.shared.store().delete_meeting(id);
+            o.shared.emit_snapshot();
+            return;
+        }
         summarize(&o, id).await;
     });
 }
@@ -1119,7 +1324,8 @@ async fn summarize(orc: &Orc, id: Uuid) {
     let transcript = {
         let store = orc.shared.store();
         let Some(m) = store.meetings.iter().find(|m| m.id == id) else { return };
-        if m.segments.is_empty() {
+        // A few words are not a meeting: notes would be invented rather than summarised.
+        if m.words() < 25 {
             return;
         }
         m.transcript()

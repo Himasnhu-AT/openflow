@@ -344,3 +344,29 @@ async fn ollama_refuses_cloud_models_as_the_local_engine() {
     let err = Polisher::new(cfg, Scope::Dictation).start().await.unwrap_err().to_string();
     assert!(err.contains("cloud model"), "{err}");
 }
+
+#[tokio::test]
+async fn speech_server_that_exits_fails_fast() {
+    use openflow_engines::whisper_server::{Status, WhisperServer};
+    let dir = tempfile::tempdir().unwrap();
+    // Only this test uses the data dir in this binary.
+    unsafe { std::env::set_var("OPENFLOW_DATA_DIR", dir.path()) };
+    std::fs::create_dir_all(dir.path().join("models")).unwrap();
+    std::fs::write(dir.path().join("models/m.gguf"), b"").unwrap();
+    // Like whisper-server handed a model it can't load: exits at once.
+    let script = dir.path().join("whisper-server");
+    std::fs::write(&script, "#!/bin/sh\necho 'failed to load model' >&2\nexit 3\n").unwrap();
+    std::fs::set_permissions(&script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    let config = openflow_core::Config {
+        whisper_server_path: script.to_string_lossy().into(),
+        whisper_model: "m.gguf".into(),
+        ..openflow_core::Config::default()
+    };
+    let server = WhisperServer::new(config);
+    let t = std::time::Instant::now();
+    let e = server.start().await.unwrap_err().to_string();
+    assert!(e.contains("exited while starting"), "{e}");
+    assert!(t.elapsed() < std::time::Duration::from_secs(5), "took {:?}", t.elapsed());
+    assert_eq!(server.status(), Status::Failed);
+    assert!(!server.wait_ready().await);
+}

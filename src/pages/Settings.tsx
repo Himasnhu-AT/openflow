@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { api, type Config, type InputDevice } from "../lib/api";
+import { api, type Config, type InputDevice, type MeetExtensionStatus } from "../lib/api";
 import { useOllamaStatus } from "../lib/ollama";
 import { useStore } from "../lib/store";
 import { CardList, PageHeader, Picker, RowCard, SecondaryButton, SectionLabel, Switch, TextField } from "../components/ui";
@@ -95,7 +95,7 @@ export function SettingsPage() {
             <SettingRow key="ollama" title="Ollama URL" subtitle="Where the Ollama server listens. Pick the engine on the Models page">
               {text("ollamaUrl", 260, "text", "http://127.0.0.1:11434")}
             </SettingRow>
-          ) : (
+          ) : snap.sandboxed ? null : (
             <SettingRow key="llama" title="llama-server" subtitle="Path to the Homebrew binary">
               {text("llamaServerPath")}
             </SettingRow>
@@ -175,6 +175,9 @@ export function SettingsPage() {
           <SettingRow key="detect" title="Detect calls" subtitle="Offers to take notes when a meeting app or call tab is using the mic">
             {toggle("meetingDetect")}
           </SettingRow>
+          <SettingRow key="meet" title="Google Meet extension" subtitle={meetExtensionLine(snap.meetExtension)}>
+            <SecondaryButton title="How to install" onClick={() => api.openPath("extension").catch(() => {})} />
+          </SettingRow>
           <SettingRow key="zh" title="Chinese script" subtitle="Cantonese and Mandarin come out Simplified from the speech model">
             {picker("chineseScript", [
               ["traditional", "Traditional"],
@@ -184,7 +187,7 @@ export function SettingsPage() {
           <SettingRow
             key="far"
             title="Far side (them)"
-            subtitle="Whisper large v3 turbo via whisper.cpp: any language, best on compressed call audio. Needs `brew install whisper-cpp` and the model in the models folder"
+            subtitle="Whisper large v3 turbo on the built-in speech server: any language, best on compressed call audio. Download the model under Models"
           >
             {picker("meetingFarEngine", [
               ["whisper", "Whisper large v3 turbo"],
@@ -252,4 +255,13 @@ export function SettingsPage() {
       </div>
     </div>
   );
+}
+
+/** One line about the Meet extension: whether it is talking to the app, and what it sees in the call. */
+function meetExtensionLine(m: MeetExtensionStatus | null | undefined): string {
+  if (!m) return "Not connected. Open a Google Meet tab with the extension installed; it checks in every 10 s";
+  if (!m.connected) return `Last heard ${m.secondsAgo} s ago. Is a Meet tab open?`;
+  if (!m.inCall) return "Connected. Waiting for a Meet call";
+  const who = m.active ? `${m.active} is speaking` : "nobody speaking";
+  return `Connected, in a call: ${m.participants} other${m.participants === 1 ? "" : "s"}, ${who}${m.captions ? ", captions on" : ""}`;
 }

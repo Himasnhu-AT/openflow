@@ -59,6 +59,9 @@ pub fn llama_args(model_path: &str, port: u16) -> Vec<String> {
 
 /// Runs `pkill -f <pattern>` and waits for it (errors ignored): clears a server left over from an earlier run.
 pub(crate) async fn pkill(pattern: &str) {
+    if openflow_core::paths::sandboxed() {
+        return; // a sandboxed app may only signal its own children
+    }
     let bin = if std::path::Path::new("/usr/bin/pkill").exists() { "/usr/bin/pkill" } else { "pkill" };
     let _ = Command::new(bin)
         .args(["-f", pattern])
@@ -271,6 +274,9 @@ impl Polisher {
                 bail!("Ollama model {model} isn't downloaded. Pull it on the Models page, or run `ollama pull {model}`.");
             }
             return Ok(());
+        }
+        if openflow_core::paths::sandboxed() {
+            bail!("llama.cpp isn't available in the App Store version of OpenFlow; use Ollama.");
         }
         pkill(&format!("llama-server.*--port {}", config.llama_port)).await;
         tokio::time::sleep(Duration::from_millis(300)).await;

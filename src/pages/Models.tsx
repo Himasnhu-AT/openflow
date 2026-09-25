@@ -68,7 +68,17 @@ function activeEngineLine(snap: Snapshot): { text: string; dot: string } {
   return { text: `Active: Ollama with ${c.ollamaModel}`, dot: ready };
 }
 
-function OllamaStatusRow({ status, error, onStarted }: { status: OllamaStatus | null; error: string | null; onStarted: () => void }) {
+function OllamaStatusRow({
+  status,
+  error,
+  onStarted,
+  sandboxed,
+}: {
+  status: OllamaStatus | null;
+  error: string | null;
+  onStarted: () => void;
+  sandboxed: boolean;
+}) {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [copied, flash] = useFlash();
@@ -106,6 +116,12 @@ function OllamaStatusRow({ status, error, onStarted }: { status: OllamaStatus | 
         }}
       />
     );
+  } else if (status && sandboxed) {
+    // The App Store build can't run Homebrew's ollama; it only starts the Ollama app.
+    dot = "var(--orange)";
+    title = "Ollama isn't installed";
+    detail = <>Polish needs the free Ollama app. Dictation works without it.</>;
+    action = <SecondaryButton title="Get Ollama" onClick={() => api.openPath("ollama-download").catch(() => {})} />;
   } else if (status) {
     dot = "var(--orange)";
     title = "Ollama isn't installed";
@@ -180,6 +196,7 @@ export function ModelsPage() {
           trailing={<SecondaryButton title="Open models folder" onClick={() => api.openPath("models")} />}
         />
 
+        {!snap.sandboxed && (
         <Section label="Engine">
           <CardList>
             <RowCard key="engine">
@@ -202,9 +219,11 @@ export function ModelsPage() {
           </CardList>
         </Section>
 
+        )}
+
         <Section label="Ollama" subtitle="Cleans up dictation through a local Ollama server. Models are pulled into Ollama's own store.">
           <CardList>
-            <OllamaStatusRow status={status} error={statusError} onStarted={refresh} />
+            <OllamaStatusRow status={status} error={statusError} onStarted={refresh} sandboxed={!!snap.sandboxed} />
             {snap.ollamaCatalog.map((m) => (
               <RowCard key={m.name}>
                 <ModelInfo label={m.label} meta={`${m.name} · ${m.gb.toFixed(1)} GB`} note={m.note} errorKey={m.name} />
@@ -220,6 +239,7 @@ export function ModelsPage() {
           </CardList>
         </Section>
 
+{!snap.sandboxed && (
         <Section label="llama.cpp (GGUF)" subtitle="Used when the engine is llama.cpp, and as the fallback when Ollama isn't available.">
           <CardList>
             {snap.catalog.map((m) => (
@@ -244,6 +264,7 @@ export function ModelsPage() {
             ))}
           </CardList>
         </Section>
+        )}
 
         <Section label="Far side of calls">
           <CardList>
@@ -251,7 +272,7 @@ export function ModelsPage() {
               {ggufInfo(
                 w,
                 <span style={{ fontSize: 12, color: snap.whisperServerFound ? "var(--tertiary)" : "var(--orange)" }}>
-                  {snap.whisperServerFound ? "whisper-server found" : "whisper-server not found: run brew install whisper-cpp"}
+                  {snap.whisperServerFound ? "Speech server ready" : "Speech server missing: reinstall OpenFlow"}
                 </span>,
               )}
               {w.file in dl.progress ? (

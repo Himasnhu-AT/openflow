@@ -52,6 +52,30 @@ pub struct Runtime {
     pub initial_page: Option<String>,
     /// The polish engine that actually loaded ("ollama" or "llamacpp"); None = verbatim only.
     pub active_backend: Option<String>,
+    /// What the Google Meet extension last reported; None = never heard from it this run.
+    pub meet_extension: Option<MeetExtension>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MeetExtension {
+    pub last_seen: std::time::Instant,
+    pub in_call: bool,
+    pub active: Option<String>,
+    pub participants: usize,
+    pub captions: bool,
+}
+
+/// The Meet extension as the UI shows it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MeetExtensionStatus {
+    /// Heard from within the last 30 s (a Meet tab checks in every 10 s).
+    pub connected: bool,
+    pub seconds_ago: u64,
+    pub in_call: bool,
+    pub active: Option<String>,
+    pub participants: usize,
+    pub captions: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -78,6 +102,9 @@ pub struct Snapshot {
     pub ollama_catalog: Vec<OllamaCatalogModel>,
     pub active_backend: Option<String>,
     pub data_dir: String,
+    /// App Sandbox (Mac App Store build): no llama.cpp or Homebrew, Ollama only through its app.
+    pub sandboxed: bool,
+    pub meet_extension: Option<MeetExtensionStatus>,
 }
 
 pub struct Shared {
@@ -131,7 +158,9 @@ impl Shared {
         let store = self.store();
         let rt = self.runtime();
         let config = store.config.clone();
-        let whisper_server_found = std::path::Path::new(&config.whisper_server_path).exists();
+        // The bundled transcribe-server, or the server the user configured.
+        let whisper_server_found =
+            openflow_engines::whisper_server::resolve_server_path(&config).is_some_and(|p| p.exists());
         Snapshot {
             history: store.history.clone(),
             stats: store.stats.clone(),
@@ -153,6 +182,18 @@ impl Shared {
             ollama_catalog: catalog::ollama_models(),
             active_backend: rt.active_backend.clone(),
             data_dir: paths::data_dir().display().to_string(),
+            sandboxed: paths::sandboxed(),
+            meet_extension: rt.meet_extension.as_ref().map(|m| {
+                let ago = m.last_seen.elapsed().as_secs();
+                MeetExtensionStatus {
+                    connected: ago <= 30,
+                    seconds_ago: ago,
+                    in_call: m.in_call,
+                    active: m.active.clone(),
+                    participants: m.participants,
+                    captions: m.captions,
+                }
+            }),
             config,
         }
     }

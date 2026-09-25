@@ -105,7 +105,9 @@ impl Store {
             .ok()
             .and_then(|b| serde_json::from_slice::<Stats>(&b).ok())
             .unwrap_or_default();
-        Store { config, history, stats, meetings: Meeting::load_all(), live_meeting_id: None }
+        let mut meetings = Meeting::load_all();
+        close_orphans(&mut meetings);
+        Store { config, history, stats, meetings, live_meeting_id: None }
     }
 
     pub fn save_config(&self) {
@@ -287,6 +289,18 @@ impl Store {
 
     fn persist_stats(&self) {
         write_compact(&paths::stats_file(), &self.stats);
+    }
+}
+
+/// Nothing is live at launch: a meeting without an end was cut off by a crash or a forced quit. It ends where its
+/// transcript does (a few seconds after the last line), so it gets notes and stops showing a running clock.
+fn close_orphans(meetings: &mut [Meeting]) {
+    for m in meetings.iter_mut().filter(|m| m.end.is_none()) {
+        let last = m.segments.iter().map(|s| s.time).fold(0.0f64, f64::max);
+        let seconds = if m.segments.is_empty() { 0.0 } else { last + 5.0 };
+        m.end = Some(m.start + chrono::Duration::milliseconds((seconds * 1000.0) as i64));
+        tracing::warn!(target: "store", "Meeting {} was interrupted; closed at {seconds:.0} s", m.id);
+        save_meeting(m);
     }
 }
 
@@ -526,7 +540,10 @@ mod tests {
         assert!(s.live_meeting_id.is_none());
         s.finish_meeting(id); // keeps the first end
         assert_eq!(s.meetings[1].end, Some(end));
-        assert_eq!(Store::load().meetings.len(), 2);
+        let reloaded = Store::load();
+        assert_eq!(reloaded.meetings.len(), 2);
+        // "Newer" never finished: a relaunch closes it instead of leaving it live forever.
+        assert!(reloaded.meetings.iter().all(|m| m.end.is_some()));
         s.delete_meeting(id);
         assert!(!path.exists());
         assert_eq!(s.meetings.len(), 1);

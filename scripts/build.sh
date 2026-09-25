@@ -14,6 +14,10 @@ HELPER_BUILD=sidecar/openflow-helper/.build/release
 mkdir -p src-tauri/binaries
 cp "$HELPER_BUILD/openflow-helper" "src-tauri/binaries/openflow-helper-$TRIPLE"
 
+# 1b. Meeting speech server (transcribe.cpp on Metal). The first build fetches the pinned source and compiles ggml.
+sidecar/transcribe-server/build.sh   # incremental after the first build
+cp sidecar/transcribe-server/transcribe-server "src-tauri/binaries/transcribe-server-$TRIPLE"
+
 # 2. Tauri app (frontend + Rust). Produces src-tauri/target or target/release/bundle/macos/OpenFlow.app.
 pnpm install --frozen-lockfile >/dev/null
 pnpm tauri build --bundles app
@@ -26,8 +30,14 @@ cp -R "$APP_SRC" "$APP"
 # SwiftPM resource bundles (FluidAudio ships one) are found through Bundle.main.resourceURL.
 for b in "$HELPER_BUILD"/*.bundle; do cp -R "$b" "$APP/Contents/Resources/"; done
 
+# Sign inside out: each helper with its own identifier, then the app. `--deep` would stamp the app's requirement on
+# the helpers and leave the app's seal pointing at stale copies ("nested code is modified or invalid").
+for BIN in openflow-helper transcribe-server; do
+  codesign --force --sign - --identifier "com.himanshuat.openflow.$BIN" "$APP/Contents/MacOS/$BIN"
+done
 # Identifier-based designated requirement so macOS keeps the Accessibility grant across rebuilds.
-codesign --force --deep --sign - -r '=designated => identifier "com.himanshuat.openflow"' "$APP"
+codesign --force --sign - -r '=designated => identifier "com.himanshuat.openflow"' "$APP"
+codesign --verify --deep --strict "$APP"
 echo "Built $APP"
 
 if [[ "${1:-}" == "--install" ]]; then

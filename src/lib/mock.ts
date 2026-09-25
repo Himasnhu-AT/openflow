@@ -162,11 +162,11 @@ const catalog: CatalogModel[] = [
 ];
 
 const whisperCatalog: CatalogModel = {
-  file: "ggml-large-v3-turbo.bin",
+  file: "whisper-large-v3-turbo-Q8_0.gguf",
   label: "Whisper large v3 turbo",
-  url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin",
-  gb: 1.6,
-  note: "Far side of calls: any language, best on compressed call audio. Needs `brew install whisper-cpp`.",
+  url: "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf/resolve/d222c9f621c1128299248f2ded4d8a1820519780/whisper-large-v3-turbo-Q8_0.gguf",
+  gb: 0.89,
+  note: "Far side of calls: any language, best on compressed call audio. Runs on the bundled transcribe-server.",
 };
 
 const ollamaCatalog: OllamaCatalogModel[] = [

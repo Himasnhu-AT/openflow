@@ -13,6 +13,7 @@ signal(SIGPIPE, SIG_IGN)
 
 let transcriber = Transcriber()
 let senseVoice = SenseVoice()
+let vad = Vad()
 /// Owned by the main queue (the default-output listener is also delivered there).
 var tap: SystemAudioTap?
 
@@ -60,6 +61,20 @@ func dispatch(_ method: String, _ params: [String: Any], _ audio: [Float]) async
         return [:]
     case "tapProcesses":
         return ["count": SystemAudioTap.audioProcesses(matching: params["match"] as? String ?? "").count]
+    case "appAudio":
+        let a = SystemAudioTap.audioActivity(matching: params["match"] as? String ?? "")
+        return ["input": a.input, "output": a.output]
+    case "vad":
+        return ["probabilities": try await vad.probabilities(audio)]
+    case "zoomSpeakers":
+        let snap = await withCheckedContinuation { (c: CheckedContinuation<ZoomSpeakers.Snapshot?, Never>) in
+            DispatchQueue.global(qos: .utility).async { c.resume(returning: ZoomSpeakers.snapshot()) }
+        }
+        guard let snap else { return ["running": false] }
+        var out: [String: Any] = ["running": true, "participants": snap.participants, "activeSource": snap.activeSource]
+        if let a = snap.active { out["active"] = a }
+        if let me = snap.selfName { out["self"] = me }
+        return out
     case "names":
         return ["names": await NameSources.names()]
     default:

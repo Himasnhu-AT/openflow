@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "OpenFlow for Google Meet",
+  "version": "0.1.0",
+  "description": "Tells the OpenFlow desktop app who is speaking in Google Meet, so meeting transcripts carry names. Talks only to OpenFlow on this Mac.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlOp3Q1bl2Cs4tDwgo5/imGOTVso/Ruv0C8qpIGvVe9Gas/28GxDgHnrIFth07eHKBX+ou8cNsynkQS5dLN1qKzN0rjK4zgw9oiN7PKCpqR95FXCIy8UVdtdtVYQKvTNoOid2gWdTVsqxvvWcR6nrSO7LMKUZ7MVNYPvVHZuc2hYMfBF+LHSU6bNL6Fezg0fcATzu4gCdeszRxhzTFxYZEX31Pv2g6CvmfHMYiP8MRElvfjjaZn6+BINATwKwvyLX4QjWXbujnX9UNmcKKyYDblS/znQ/NPzlrU06hGOX/e5EMmEuwnfdsGGic4kjU3tqqTxWackzlExzH6FQf+aVYQIDAQAB",
+  "permissions": [],
+  "host_permissions": ["http://127.0.0.1:8770/*"],
+  "background": { "service_worker": "service-worker.js" },
+  "action": { "default_title": "OpenFlow", "default_popup": "popup.html" },
+  "content_scripts": [
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
