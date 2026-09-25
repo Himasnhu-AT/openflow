@@ -163,6 +163,8 @@ export interface Snapshot {
   /** The engine that actually loaded: "ollama", "llamacpp" (possibly as the fallback), or null (verbatim only). */
   activeBackend: "ollama" | "llamacpp" | null;
   dataDir: string;
+  /** Mac App Store build (App Sandbox): no llama.cpp or Homebrew; Ollama only through its app. */
+  sandboxed?: boolean;
 }
 
 /** A model offered for `ollama pull` on the Models page. */
@@ -243,7 +245,7 @@ export const api = {
   appInfo: (bundleId: string) => invoke<AppInfo | null>("app_info", { bundleId }),
 
   /** "config" | "models" | "readme" */
-  openPath: (which: "config" | "models" | "readme") => invoke<void>("open_path", { which }),
+  openPath: (which: "config" | "models" | "readme" | "ollama-download") => invoke<void>("open_path", { which }),
   copyText: (text: string) => invoke<void>("copy_text", { text }),
   getLaunchAtLogin: () => invoke<boolean>("get_launch_at_login"),
   setLaunchAtLogin: (enabled: boolean) => invoke<void>("set_launch_at_login", { enabled }),

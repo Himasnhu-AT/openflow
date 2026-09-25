@@ -95,7 +95,7 @@ export function SettingsPage() {
             <SettingRow key="ollama" title="Ollama URL" subtitle="Where the Ollama server listens. Pick the engine on the Models page">
               {text("ollamaUrl", 260, "text", "http://127.0.0.1:11434")}
             </SettingRow>
-          ) : (
+          ) : snap.sandboxed ? null : (
             <SettingRow key="llama" title="llama-server" subtitle="Path to the Homebrew binary">
               {text("llamaServerPath")}
             </SettingRow>

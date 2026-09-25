@@ -76,9 +76,9 @@ pub fn bundled_server_path() -> Option<PathBuf> {
     dev.is_file().then_some(dev)
 }
 
-/// `whisperServerPath` when set, else the bundled transcribe-server.
+/// `whisperServerPath` when set, else the bundled transcribe-server. Sandboxed, only the bundled one can run.
 pub fn resolve_server_path(config: &Config) -> Option<PathBuf> {
-    if config.whisper_server_path.is_empty() {
+    if config.whisper_server_path.is_empty() || openflow_core::paths::sandboxed() {
         bundled_server_path()
     } else {
         Some(PathBuf::from(&config.whisper_server_path))

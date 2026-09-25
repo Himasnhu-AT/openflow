@@ -78,6 +78,8 @@ pub struct Snapshot {
     pub ollama_catalog: Vec<OllamaCatalogModel>,
     pub active_backend: Option<String>,
     pub data_dir: String,
+    /// App Sandbox (Mac App Store build): no llama.cpp or Homebrew, Ollama only through its app.
+    pub sandboxed: bool,
 }
 
 pub struct Shared {
@@ -155,6 +157,7 @@ impl Shared {
             ollama_catalog: catalog::ollama_models(),
             active_backend: rt.active_backend.clone(),
             data_dir: paths::data_dir().display().to_string(),
+            sandboxed: paths::sandboxed(),
             config,
         }
     }

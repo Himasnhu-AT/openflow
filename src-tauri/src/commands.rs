@@ -157,6 +157,9 @@ pub fn open_path(app: AppHandle, which: String) -> CmdResult<()> {
             paths::models_dir()
         }
         "readme" => crate::readme_path(&app).ok_or("README not found")?,
+        "ollama-download" => {
+            return app.opener().open_url("https://ollama.com/download", None::<&str>).map_err(|e| e.to_string());
+        }
         _ => return Err(format!("unknown path {which}")),
     };
     app.opener().open_path(path.display().to_string(), None::<&str>).map_err(|e| e.to_string())
