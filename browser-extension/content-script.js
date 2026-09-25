@@ -76,6 +76,12 @@ if (typeof document !== "undefined" && typeof chrome !== "undefined" && chrome.r
   let lastSent = 0;
   let inCall = false;
   const captionSeen = new Map();
+  /** What this tab sees, for the extension's popup. */
+  const state = { inCall: false, active: null, self: null, participants: [], captions: false };
+
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg && msg.type === "state") sendResponse(state);
+  });
 
   const send = (msg) => {
     try {
@@ -85,6 +91,10 @@ if (typeof document !== "undefined" && typeof chrome !== "undefined" && chrome.r
       // The extension was reloaded; this page's script is orphaned until the tab reloads.
     }
   };
+
+  // Check in every 10 s so OpenFlow can show the extension as connected, in a call or not.
+  send({ type: "hello" });
+  setInterval(() => send({ type: "hello" }), 10_000);
 
   const tileOf = (el) => (el && el.closest ? el.closest("[data-participant-id]") : null);
 
@@ -122,6 +132,7 @@ if (typeof document !== "undefined" && typeof chrome !== "undefined" && chrome.r
     const nowInCall = people.size > 0;
     if (nowInCall !== inCall) {
       inCall = nowInCall;
+      state.inCall = inCall;
       send({ type: "call", inCall });
     }
     if (!inCall) return;
@@ -140,6 +151,7 @@ if (typeof document !== "undefined" && typeof chrome !== "undefined" && chrome.r
     const self = [...people.values()].find((p) => p.isSelf && p.name)?.name || null;
     const names = [...new Set([...people.values()].filter((p) => p.name && !p.isSelf).map((p) => p.name))];
     const key = names.join("|");
+    Object.assign(state, { active, self, participants: names });
     // On change, and every 3 s while someone talks so the app knows they still are.
     if (active !== last.active || key !== last.participants || (active && now - lastSent > 3000)) {
       last = { active, participants: key };
@@ -164,6 +176,7 @@ if (typeof document !== "undefined" && typeof chrome !== "undefined" && chrome.r
       const k = c.name;
       if (captionSeen.get(k) === c.text) continue;
       captionSeen.set(k, c.text);
+      state.captions = true;
       send({ type: "caption", name: c.name, text: c.text.slice(0, 2000) });
     }
   }

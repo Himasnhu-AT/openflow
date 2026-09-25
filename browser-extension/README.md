@@ -7,11 +7,25 @@ extension only adds names.
 ## Install (unpacked)
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
-2. Click **Load unpacked** and choose this `browser-extension` folder.
+2. Click **Load unpacked** and choose this `browser-extension` folder. The installed app carries a copy: Settings ›
+   Meetings › Google Meet extension › *How to install* shows it in Finder.
 3. Its ID must be `mbddbmiendbipklcehlgelanomjpoppf`, which is fixed by the `key` in `manifest.json`. OpenFlow
    accepts requests from that ID only.
 
 Edge, Brave, Arc and other Chromium browsers load it the same way.
+
+## Is it connected?
+
+- **The extension's popup:** click the OpenFlow icon in Chrome's toolbar (pin it from the puzzle-piece menu).
+  - It shows **Connected to OpenFlow** when the app answers.
+  - In a Meet tab it also shows what the extension sees: in a call or not, who is speaking, everyone's names, and
+    whether captions are on.
+- **The app:** Settings › Meetings › *Google Meet extension* shows *Connected* and the same call details. A Meet tab
+  checks in every 10 s, so the row reads "Not connected" until one is open.
+- **During a meeting:** far-side lines show names instead of "Them".
+
+In the App Store build the extension is also how a Meet call is noticed: the sandbox can't read browser window
+titles. Joining a call shows the *Meeting in Google Meet* pill, and leaving it ends the meeting after 8 s.
 
 ## What it does
 

@@ -134,6 +134,15 @@ export interface CatalogModel {
 }
 
 /** Everything the main window renders. Emitted as the `snapshot` event on every change. */
+export interface MeetExtensionStatus {
+  connected: boolean;
+  secondsAgo: number;
+  inCall: boolean;
+  active: string | null;
+  participants: number;
+  captions: boolean;
+}
+
 export interface Snapshot {
   config: Config;
   history: Dictation[];
@@ -165,6 +174,8 @@ export interface Snapshot {
   dataDir: string;
   /** Mac App Store build (App Sandbox): no llama.cpp or Homebrew; Ollama only through its app. */
   sandboxed?: boolean;
+  /** The Google Meet extension; null until it checks in (a Meet tab checks in every 10 s). */
+  meetExtension?: MeetExtensionStatus | null;
 }
 
 /** A model offered for `ollama pull` on the Models page. */
@@ -245,7 +256,7 @@ export const api = {
   appInfo: (bundleId: string) => invoke<AppInfo | null>("app_info", { bundleId }),
 
   /** "config" | "models" | "readme" */
-  openPath: (which: "config" | "models" | "readme" | "ollama-download") => invoke<void>("open_path", { which }),
+  openPath: (which: "config" | "models" | "readme" | "ollama-download" | "extension") => invoke<void>("open_path", { which }),
   copyText: (text: string) => invoke<void>("copy_text", { text }),
   getLaunchAtLogin: () => invoke<boolean>("get_launch_at_login"),
   setLaunchAtLogin: (enabled: boolean) => invoke<void>("set_launch_at_login", { enabled }),

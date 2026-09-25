@@ -2,7 +2,7 @@
 
 use openflow_core::model::{AppInfo, InputDevice, Meeting};
 use openflow_core::{paths, Config};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use uuid::Uuid;
 
 use crate::orchestrator::Msg;
@@ -156,6 +156,17 @@ pub fn open_path(app: AppHandle, which: String) -> CmdResult<()> {
             paths::models_dir()
         }
         "readme" => crate::readme_path(&app).ok_or("README not found")?,
+        // The Chrome extension ships inside the app: Finder shows its folder for chrome://extensions › Load unpacked.
+        "extension" => {
+            let dir = app
+                .path()
+                .resource_dir()
+                .map(|d| d.join("browser-extension"))
+                .ok()
+                .filter(|d| d.join("manifest.json").exists())
+                .unwrap_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../browser-extension"));
+            return app.opener().reveal_item_in_dir(dir.join("manifest.json")).map_err(|e| e.to_string());
+        }
         "ollama-download" => {
             return app.opener().open_url("https://ollama.com/download", None::<&str>).map_err(|e| e.to_string());
         }

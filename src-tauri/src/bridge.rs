@@ -34,6 +34,8 @@ pub enum Event {
         #[serde(rename = "inCall")]
         in_call: bool,
     },
+    /// A Meet tab (or the extension's popup) checking in, so the app can show the extension as connected.
+    Hello,
 }
 
 pub type Sink = Arc<dyn Fn(Event) + Send + Sync>;
@@ -187,6 +189,7 @@ mod tests {
             other => panic!("{other:?}"),
         }
         assert_eq!(parse_event(br#"{"type":"call","inCall":true}"#), Some(Event::Call { in_call: true }));
+        assert_eq!(parse_event(br#"{"type":"hello"}"#), Some(Event::Hello));
         assert_eq!(parse_event(br#"{"type":"speaker"}"#), Some(Event::Speaker { active: None, self_name: None, participants: vec![] }));
         assert_eq!(parse_event(b"nonsense"), None);
         assert_eq!(parse_event(br#"{"type":"evil"}"#), None);

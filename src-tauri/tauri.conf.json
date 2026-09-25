@@ -70,7 +70,13 @@
       "binaries/transcribe-server"
     ],
     "resources": {
-      "../README.md": "README.md"
+      "../README.md": "README.md",
+      "../browser-extension/manifest.json": "browser-extension/manifest.json",
+      "../browser-extension/content-script.js": "browser-extension/content-script.js",
+      "../browser-extension/service-worker.js": "browser-extension/service-worker.js",
+      "../browser-extension/popup.html": "browser-extension/popup.html",
+      "../browser-extension/popup.js": "browser-extension/popup.js",
+      "../browser-extension/README.md": "browser-extension/README.md"
     }
   },
   "mainBinaryName": "OpenFlow"
