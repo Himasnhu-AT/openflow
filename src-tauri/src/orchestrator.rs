@@ -248,6 +248,12 @@ fn launch(orc: &Orc) {
         })));
     }
 
+    // OPENFLOW_PREVIEW_PILL=<app name> shows the meeting offer pill at launch (visual checks, screenshots).
+    if let Some(app) = std::env::var("OPENFLOW_PREVIEW_PILL").ok().filter(|a| !a.is_empty()) {
+        *orc.meeting_offer.lock().unwrap() = Some(app);
+        render(orc);
+    }
+
     // Speech servers a previous run left behind (no meeting can be running yet).
     tauri::async_runtime::spawn(WhisperServer::kill_orphans());
 

@@ -2,12 +2,13 @@
   --accent: rgb(158, 140, 250);
   color-scheme: dark;
 }
+/* The window is clipped to a capsule natively (no transparent webview), so the page itself is the pill colour. */
 html,
 body,
 #root {
   margin: 0;
   height: 100%;
-  background: transparent;
+  background: rgb(26, 26, 26);
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -40,14 +41,16 @@ button {
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  max-width: 100%;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
   border-radius: 999px;
-  background: rgba(26, 26, 26, 0.94);
+  background: rgb(26, 26, 26);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
   color: #fff;
 }
 .pill.wide {
-  width: 100%;
+  justify-content: flex-start;
 }
 
 .pill-bars {

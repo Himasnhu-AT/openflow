@@ -61,8 +61,9 @@ pub fn setup_overlay(app: &AppHandle) {
 #[cfg(target_os = "macos")]
 mod macos {
     use objc2::rc::Retained;
-    use objc2::MainThreadMarker;
-    use objc2_app_kit::{NSEvent, NSScreen, NSWindow, NSWindowCollectionBehavior};
+    use objc2::runtime::AnyObject;
+    use objc2::{msg_send, MainThreadMarker};
+    use objc2_app_kit::{NSColor, NSEvent, NSScreen, NSWindow, NSWindowCollectionBehavior};
     use objc2_foundation::{NSPoint, NSRect, NSSize};
     use tauri::WebviewWindow;
 
@@ -85,7 +86,26 @@ mod macos {
         );
         win.setHidesOnDeactivate(false);
         win.setHasShadow(true);
+        // No transparent webview (that needs Tauri's private macOS API, which the App Store rejects): the page is
+        // opaque and the window is clipped to a capsule instead. Everything here is public AppKit API.
         win.setOpaque(false);
+        win.setBackgroundColor(Some(&NSColor::clearColor()));
+    }
+
+    /// Rounds the window's content to a capsule of this height (the pill fills its window).
+    fn clip_to_capsule(win: &NSWindow, height: f64) {
+        let Some(view) = win.contentView() else { return };
+        view.setWantsLayer(true);
+        // SAFETY: `layer` is a public NSView property; after setWantsLayer(true) it is a live CALayer, and
+        // setCornerRadius: / setMasksToBounds: are public CALayer setters. Main thread only (caller).
+        unsafe {
+            let layer: *mut AnyObject = msg_send![&*view, layer];
+            if let Some(layer) = layer.as_ref() {
+                let _: () = msg_send![layer, setCornerRadius: height / 2.0];
+                let _: () = msg_send![layer, setMasksToBounds: true];
+            }
+        }
+        win.invalidateShadow();
     }
 
     /// Centered horizontally on the screen under the mouse, 28 pt above the bottom of its visible frame.
@@ -114,6 +134,7 @@ mod macos {
             let origin = NSPoint::new(f.origin.x + f.size.width / 2.0 - width / 2.0, f.origin.y + 28.0);
             win.setFrame_display(NSRect::new(origin, NSSize::new(width, height)), true);
         }
+        clip_to_capsule(&win, height);
         win.orderFrontRegardless();
     }
 }
