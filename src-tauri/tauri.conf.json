@@ -59,7 +59,10 @@
     ],
     "macOS": {
       "minimumSystemVersion": "15.0",
-      "infoPlist": "Info.plist"
+      "infoPlist": "Info.plist",
+      "files": {
+        "Resources/PrivacyInfo.xcprivacy": "./appstore/PrivacyInfo.xcprivacy"
+      }
     },
     "category": "Productivity",
     "externalBin": [
